@@ -1,0 +1,23 @@
+@name "Testing"
+@ThirdParty "Libs"
+
+UseClang()
+CreateBinary(executable)
+
+Sources {
+  "Source/Main.cc"
+  "Source/TestHeader.cc"
+}
+Includes {
+  "Headers"
+}
+Assets {
+  "TestAssets"
+}
+Win32Flags {
+  "-DDEBUG=ENABLE"
+}
+Using {
+  "TestLib/Build.lava"
+  "TestLibC/Build.lava"
+}

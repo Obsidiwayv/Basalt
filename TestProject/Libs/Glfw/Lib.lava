@@ -1,0 +1,11 @@
+Includes {
+   "Libs/Glfw/include"
+}
+
+ResourcesWin32 {
+   "Libs/Glfw/glfw3.dll"
+}
+
+Link {
+   "Libs/Glfw/glfw3dll.lib"
+}

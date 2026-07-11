@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Basalt.BackendPipes/Basalt.BackendPipes.csproj" Id="6c9a04f7-e2c5-4fd6-ad4a-b99288600af2" />
+  <Project Path="Basalt.Build/Basalt.Build.csproj" />
+  <Project Path="Basalt.Lexer/Basalt.LavaLang.csproj" />
+  <Project Path="Basalt.Tile/Basalt.Tile.csproj" />
+</Solution>

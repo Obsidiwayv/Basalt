@@ -1,0 +1,25 @@
+﻿using Basalt.LavaLang.Entities;
+using Basalt.Tile;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Basalt.LavaLang
+{
+    public class BasaltProject(List<IPartialNode> Nodes, BasaltLavaFile ProjectFile)
+    {
+        public BasaltLavaFile FileSource { get; } = ProjectFile;
+
+        public List<IPartialNode> Nodes { get; } = Nodes;
+
+        // PartialNode can be used with instanceof
+        public IPartialNode? GetNode(string Key)
+        {
+            foreach (IPartialNode Node in Nodes)
+            {
+                if (Node.Key == Key) return Node;
+            }
+            return null;
+        }
+    }
+}

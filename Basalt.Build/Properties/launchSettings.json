@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Basalt.Build": {
+      "commandName": "Project",
+      "workingDirectory": "TestProject",
+      "remoteDebugEnabled": false
+    }
+  }
+}

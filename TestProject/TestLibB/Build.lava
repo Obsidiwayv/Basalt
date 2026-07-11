@@ -1,0 +1,11 @@
+@name "TestLibB"
+
+CreateBinary(library, dynamic)
+
+Sources {
+   "TestLibB/theb.cc"
+}
+
+Includes {
+   "TestLibB/Inc"
+}

@@ -1,0 +1,15 @@
+@name "TestLibA"
+
+CreateBinary(library, dynamic)
+
+Using {
+   "TestLibB/Build.lava"
+}
+
+Sources {
+   "TestLib/thea.cc"
+}
+
+Includes {
+   "TestLib/Inc"
+}

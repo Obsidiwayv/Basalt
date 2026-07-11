@@ -1,0 +1,11 @@
+@name "TestLibC"
+
+CreateBinary(library, static)
+
+Sources {
+   "TestLibC/thec.cc"
+}
+
+Includes {
+   "TestLibC/Inc"
+}

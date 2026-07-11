@@ -1,0 +1,7 @@
+Includes {
+   "Libs/Glad/include"
+}
+
+Sources {
+   "Libs/Glad/src/gl.c"
+}
