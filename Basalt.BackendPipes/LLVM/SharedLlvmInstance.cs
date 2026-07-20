@@ -1,25 +1,25 @@
 ﻿using Basalt.LavaLang;
-using Basalt.LavaLang.Entities;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
 using Basalt.Tile;
 using System;
 using System.Collections.Generic;
-using System.Reflection.PortableExecutable;
 using System.Text;
 
 namespace Basalt.BackendPipes.LLVM
 {
-    public class LlvmProvider : BasicProvider, IProvider
+
+    public class SharedLlvmInstance : BasicProvider, IProvider
     {
-        public FUseCompiler CompilerMetadata { get; } 
+        public FUseCompiler CompilerMetadata { get; }
         private List<string> RequiredLibraryIncludes { get; } = [];
         private List<string> RequiredLibraryLinkFiles { get; } = [];
         private BasaltThirdPartyLibraries ThirdPartyLibraries = new();
 
-        public LlvmProvider(BasaltProject Project,
+        public SharedLlvmInstance(BasaltProject Project,
             FUseCompiler CompilerMetadata,
-            string[] Args) : base(Project, CompilerMetadata.CompilerName, Args, true)
+            string[] Args,
+            OSInformation LLVMOSInstance) : base(Project, CompilerMetadata.CompilerName, Args, true)
         {
             this.CompilerMetadata = CompilerMetadata;
 
@@ -32,11 +32,11 @@ namespace Basalt.BackendPipes.LLVM
                         .LibraryCache.Find(Lib => Lib.ProjectFile == ProjectFileDependency);
 
                     // Take the library file we cached earlier and use that to link to the final executable
-                    if (CachedLibrary != null) 
+                    if (CachedLibrary != null)
                     {
                         RequiredLibraryIncludes.Add(string.Join(" ", CachedLibrary.Includes));
                         RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
-                    };
+                    }
                 }
             }
 
@@ -103,14 +103,14 @@ namespace Basalt.BackendPipes.LLVM
                 Resources = (LavaArrayNode?)Lib.GetNode("ResourcesWin32");
             }
 
-            if (Headers != null) foreach (string IncludeDir in Headers.Value) 
+            if (Headers != null) foreach (string IncludeDir in Headers.Value)
                 ThirdPartyLibraries.Headers.Add($"-I{IncludeDir}");
 
             if (LibFiles != null)
             {
                 foreach (string F in LibFiles.Value)
                 {
-                    if (OperatingSystem.IsWindows() && F.EndsWith(".lib")) 
+                    if (OperatingSystem.IsWindows() && F.EndsWith(".lib"))
                         ThirdPartyLibraries.LinkFiles.Add(F);
                 }
             }
@@ -123,7 +123,8 @@ namespace Basalt.BackendPipes.LLVM
                     {
                         string FileName = Path.GetFileName(Resource);
                         File.Copy(Resource, Path.Join(GetDebugOrReleaseDir(), FileName), true);
-                    } else
+                    }
+                    else
                     {
                         throw new BasaltException($"%r{Resource}$c is an invalid resource");
                     }
@@ -189,7 +190,7 @@ namespace Basalt.BackendPipes.LLVM
                 List<string> Includes = GetIncludes();
 
                 List<string> Args = [
-                    "-c", SourceFile, 
+                    "-c", SourceFile,
                     $"-o {SourceNameWithObject}",
                     ..Includes,
                     ..ThirdPartyLibraries.Headers,
@@ -235,7 +236,7 @@ namespace Basalt.BackendPipes.LLVM
                     string OutputDir = "Bin/Resource";
                     string OutputRes = Path.Join(OutputDir, $"{Path.GetFileNameWithoutExtension(ResourceFile.Value)}.res");
                     Directory.CreateDirectory(OutputDir);
-                    BasicCompilerBackend.ExecuteTool(GetLLVMExecutableFromBin("llvm-rc"), 
+                    BasicCompilerBackend.ExecuteTool(GetLLVMExecutableFromBin("llvm-rc"),
                         [ResourceFile.Value, "/FO", OutputRes]);
 
                     OSFlags.Add(OutputRes);
@@ -253,53 +254,26 @@ namespace Basalt.BackendPipes.LLVM
             BasaltGlobalFileCache.PushFile(ExecutableName);
         }
 
+        public void BuildStaticLibrary()
+        {
+            throw new BasaltException("This Method is not supported on this OS");
+        }
+
+        public void BuildDynamicLibrary()
+        {
+            throw new BasaltException("This Method is not supported on this OS");
+        }
+
+        public void BuildExecutable()
+        {
+            throw new BasaltException("This Method is not supported on this OS");
+        }
+
         public void BuildLibraryTask(ELibraryType LibraryType)
         {
             SetCompilerMode(EBinaryType.Library, LibraryType);
 
-            List<string> DebugFlags = GetCompilerDebugFlags();
-            List<string> Objects = CompileToObjects();
-
-            string Arch = GetOSArch();
-            string LibraryName = $"{ProjectName.Value}-x{Arch}";
-            List<string> Includes = GetIncludes();
-
-            switch (LibraryType)
-            {
-                case ELibraryType.Dynamic:
-                    List<string> ExtraFlags = [];
-
-                    if (OperatingSystem.IsWindows())
-                    {
-                        string LibraryLinkFile = $"{Path.Join(BasaltDirectoryTiles.Libraries.Value, LibraryName)}.lib";
-                        ExtraFlags.Add($"-Wl,/IMPLIB:{LibraryLinkFile}");
-
-                        BasaltGlobalFileCache.LibraryCache.Add(
-                            new(Project.FileSource.Name, LibraryLinkFile, Includes));
-                    }
-                    string BinaryName = $"{Path.Join(OutputDirectory, LibraryName)}.{GetLibFileExtension()}";
-                    BasicCompilerBackend.ExecuteTool(GetClangExecutableCommand(false),
-                        [$"-o {BinaryName}",
-                        OperatingSystem.IsMacOS() ? "-dynamiclib" : "-shared",
-                        ..ExtraFlags,
-                        ..DebugFlags,
-                        ..ThirdPartyLibraries.LinkFiles,
-                        string.Join(" ", Objects)]);
-
-                    BasaltGlobalFileCache.PushFile(BinaryName);
-                    break;
-                case ELibraryType.Static:
-                    if (OperatingSystem.IsWindows())
-                    {
-                        string LibraryOutputName = $"{Path.Join(BasaltDirectoryTiles.Libraries.Value, LibraryName)}-static.lib";
-                        BasicCompilerBackend.ExecuteTool(GetLLVMExecutableFromBin("llvm-lib"), [
-                            $"/OUT:{LibraryOutputName}",
-                            ..Objects]);
-                        BasaltGlobalFileCache.LibraryCache.Add(
-                            new(Project.FileSource.Name, LibraryOutputName, Includes));
-                    }
-                    break;
-            }
+            
         }
     }
 }

@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Basalt.LavaLang.Entities
 {
-    internal interface IBasicLanguagePipeline
+    internal interface IBasicLanguagePipeline<T>
     {
-        public void Run();
+        public T Run();
     }
 }

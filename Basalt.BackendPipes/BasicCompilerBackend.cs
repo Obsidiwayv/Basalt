@@ -36,29 +36,59 @@ namespace Basalt.BackendPipes
 
         public bool PreviewMode { get; set; } = false;
 
+        public bool DepthLogging { get; set; } = false;
+
+        public bool HasFlags { get; set; } = false;
+
         // This is obsolete now, but i wont remove it until later
         private bool UsingDatabaseFile { get; }
 
-        public BasicProvider(string CompilerName, string[] Args, bool UsingDatabaseFile)
+        public BasaltProject Project { get; }
+
+        public LavaStringNode ProjectName { get; }
+
+        public string OutputDirectory { get; set; }
+
+        public BasicProvider(
+            BasaltProject Project,
+            string CompilerName,
+            string[] Args,
+            bool UsingDatabaseFile)
         {
             BasaltLogger.WriteLine($"Selected %b{CompilerName}%c as the Backend compiler");
+            BasaltGlobalStats.Depth++;
+
+            this.Project = Project;
+
+            ProjectName = (LavaStringNode?)Project.GetNode("name")
+                ?? throw new BasaltException("Project is missing a name attribute!");
 
             this.UsingDatabaseFile = UsingDatabaseFile;
 
-            // setting up flags
-            foreach (string Flag in Args)
+            // Ignore already set flags for performance
+            if (!HasFlags)
             {
-                switch (Flag)
+                // setting up flags
+                foreach (string Flag in Args)
                 {
-                    case "-debug":
-                        DebugMode = true;
-                        BasaltGlobalFileCache.DebugMode = true;
-                        break;
-                    case "-staging":
-                        PreviewMode = true;
-                        break;
+                    switch (Flag)
+                    {
+                        case "-debug":
+                            DebugMode = true;
+                            BasaltGlobalFileCache.DebugMode = true;
+                            break;
+                        case "-staging":
+                            PreviewMode = true;
+                            break;
+                        case "-ld":
+                            DepthLogging = true;
+                            break;
+                    }
                 }
+                HasFlags = true;
             }
+
+            OutputDirectory = UpdateOutputDirectory();
             BasaltGlobalFileCache.LoadIntoCache();
         }
 
@@ -79,7 +109,7 @@ namespace Basalt.BackendPipes
             _ => throw new BasaltException("Unknown Operating system library type")
         };
 
-        public string GetExecutableName(string AppName)
+        public string GetExecutableName()
         {
             string ArchName = GetOSArch();
             string OSName = BasicCompilerBackend.GetOSName();
@@ -89,7 +119,19 @@ namespace Basalt.BackendPipes
                 (_, true) => "Developer",
                 _ => "Shipping"
             };
-            return $"{AppName}-{ReleaseModel}-{OSName}{ArchName}{(OperatingSystem.IsWindows() ? ".exe" : "")}";
+            return $"{ProjectName}-{ReleaseModel}-{OSName}{ArchName}{(OperatingSystem.IsWindows() ? ".exe" : "")}";
+        }
+
+        private string UpdateOutputDirectory()
+        {
+            LavaStringNode? UserOutputDir = (LavaStringNode?)Project.GetNode("Output");
+            if (UserOutputDir != null)
+            {
+                return Path.Join(GetDebugOrReleaseDir(), UserOutputDir.Value);
+            } else
+            {
+                return GetDebugOrReleaseDir();
+            }
         }
 
         public string GetDebugOrReleaseDir()
@@ -99,12 +141,12 @@ namespace Basalt.BackendPipes
 
             if (DebugMode)
             {
-                BasicCompilerBackend.CreateDir(DebugDir);
+                Directory.CreateDirectory(DebugDir);
                 return DebugDir;
             }
             else
             {
-                BasicCompilerBackend.CreateDir(ReleaseDir);
+                Directory.CreateDirectory(ReleaseDir);
                 return ReleaseDir;
             }
         }
@@ -135,6 +177,8 @@ namespace Basalt.BackendPipes
                     Pipeline.CopyFiles(Path, GetDebugOrReleaseDir());
                 }
             }
+            if (DepthLogging) BasaltLogger.WriteLine($"");
+
             BasaltGlobalFileCache.WriteIntoCache();
         }
 
@@ -162,7 +206,6 @@ namespace Basalt.BackendPipes
         {
             try
             {
-                BasaltLogger.WriteLine(string.Join(" ", Flags));
                 Process ToolProcess = new();
                 ToolProcess.StartInfo.FileName = ToolUrl;
                 ToolProcess.StartInfo.Arguments = string.Join(" ", Flags);
@@ -180,11 +223,6 @@ namespace Basalt.BackendPipes
             {
                 throw new BasaltException($"Could not compile project, reason:\n {e}");
             }
-        }
-
-        public static void CreateDir(string Path)
-        {
-            if (!Directory.Exists(Path)) Directory.CreateDirectory(Path);
         }
 
         public static OSInformation GetOSEnum()

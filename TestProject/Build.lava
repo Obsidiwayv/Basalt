@@ -1,5 +1,6 @@
 @name "Testing"
 @ThirdParty "Libs"
+@RCFile "test-resource.rc"
 
 UseClang()
 CreateBinary(executable)

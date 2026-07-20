@@ -6,11 +6,18 @@ using System.Text;
 
 namespace Basalt.LavaLang
 {
+    public enum CompilerLanguage
+    {
+        CPP,
+        C
+    }
+
     public class CompilerFunctions
     {
-        public static int VerifyLanguageVerson(List<string> Params, LavaFunctionNode Node)
+        public static int VerifyLanguageVerson(List<string> Params, LavaFunctionNode Node, CompilerLanguage Lang)
         {
-            int LanguageVersion = BasaltDefaults.CPP;
+            bool IsCPP = Lang == CompilerLanguage.CPP;
+            int LanguageVersion = IsCPP ? BasaltDefaults.CPP : BasaltDefaults.C;
             if (Params.Count == 1)
             {
                 if (int.TryParse(Params[0], out int LangVersion))
@@ -19,8 +26,16 @@ namespace Basalt.LavaLang
                 }
                 else
                 {
-                    throw new BasaltException($"Parameter 1 of %m{Node.Key}()%c is not a valid language version!");
+                    throw new BasaltException($"Parameter 1 of %m{Node.Key}()%c is not an integer!");
                 }
+            }
+            Dictionary<int, string> LanguageDict = IsCPP 
+                ? BasaltDefaults.CPPVersions 
+                : BasaltDefaults.CVersions;
+
+            if (!LanguageDict.ContainsKey(LanguageVersion))
+            {
+                throw new BasaltException($"%m{LanguageVersion}%c is not a valid language version!");
             }
             return LanguageVersion;
         }

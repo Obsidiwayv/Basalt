@@ -11,7 +11,6 @@ namespace Basalt.Tile
 
         public string Fetch() 
         {
-            Console.WriteLine(Name);
             if (!File.Exists(Name)) 
                 throw new BasaltException("Basalt could not find a project file");
             return File.ReadAllText(Name);

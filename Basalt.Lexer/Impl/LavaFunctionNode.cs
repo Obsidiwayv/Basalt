@@ -26,11 +26,11 @@ namespace Basalt.LavaLang.Impl
         public T Invoke<T>()
         {
             MethodInfo? AvalibleMethod = typeof(Functions)
-                .GetMethod(Key, BindingFlags.Static | BindingFlags.Public);
+                .GetMethod(Key, BindingFlags.Static | BindingFlags.Public) 
+                ?? throw new BasaltException($"Unexpected function: {Key}()");
 
-            return AvalibleMethod == null 
-                ? throw new BasaltException($"Unexpected function: {Key}()") 
-                : (T)AvalibleMethod.Invoke(null, [this, Value])!;
+            BasaltGlobalStats.ExecutedFunctions++;
+            return (T)AvalibleMethod.Invoke(null, [this, Value])!;
         }
     }
 

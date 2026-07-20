@@ -6,19 +6,24 @@ using System.Text;
 
 namespace Basalt.LavaLang
 {
-    public class BasaltLanguageLexer(BasaltLavaFile File) : IBasicLanguagePipeline
+    public class BasaltLanguageLexer(BasaltLavaFile File) 
+        : IBasicLanguagePipeline<BasaltLanguageLexer>
     {
         public List<string> SyntaxMap { get; } = [];    
 
-        public void Run()
+        public BasaltLanguageLexer Run()
         {
             char[] FileContent = File.Fetch().ToCharArray();
             Read(FileContent);
+            return this;
         }
 
-        public BasaltLanguageParser UseParser()
+        /**
+         * Creates a new parser instance, runs, and then returns it
+         */
+        public BasaltLanguageParser PipeIntoParser()
         {
-            return new(SyntaxMap, File);
+            return new BasaltLanguageParser(SyntaxMap, File).Run();
         }
 
         private void Read(char[] Contents)

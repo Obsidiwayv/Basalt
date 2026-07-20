@@ -8,7 +8,8 @@ using System.Text;
 
 namespace Basalt.LavaLang
 {
-    public class BasaltLanguageParser(List<string> SyntaxMap, BasaltLavaFile ProjectFile) : IBasicLanguagePipeline
+    public class BasaltLanguageParser(List<string> SyntaxMap, BasaltLavaFile ProjectFile) 
+        : IBasicLanguagePipeline<BasaltLanguageParser>
     {
         public BasaltLavaFile ProjectFile { get; } = ProjectFile;
 
@@ -22,7 +23,7 @@ namespace Basalt.LavaLang
             }
         }
 
-        public void Run() 
+        public BasaltLanguageParser Run() 
         {
             for (int Index = 0; Index < SyntaxMap.Count; Index++)
             {
@@ -74,6 +75,7 @@ namespace Basalt.LavaLang
                     }
                 }
             }
+            return this;
         }
     }
 }
