@@ -6,10 +6,10 @@ using System.Text;
 
 namespace Basalt.LavaLang
 {
-    public class BasaltLanguageLexer(BasaltLavaFile File) 
+    public class BasaltLanguageLexer(BasaltLavaFile File)
         : IBasicLanguagePipeline<BasaltLanguageLexer>
     {
-        public List<string> SyntaxMap { get; } = [];    
+        public List<string> SyntaxMap { get; } = [];
 
         public BasaltLanguageLexer Run()
         {
@@ -23,7 +23,7 @@ namespace Basalt.LavaLang
          */
         public BasaltLanguageParser PipeIntoParser()
         {
-            return new BasaltLanguageParser(SyntaxMap, File).Run();
+            return new BasaltLanguageParser(SyntaxMap, File);
         }
 
         private void Read(char[] Contents)
@@ -55,7 +55,7 @@ namespace Basalt.LavaLang
                                 SyntaxMap.Add(SubString.ToString());
                             }
                             // Due to how the lexer parses characters this is the only safe way to parse a function
-                            if (Params == 0 || Params == 1) 
+                            if (Params == 0 || Params == 1)
                                 SyntaxMap.Add(")");
                             break;
                         }
@@ -82,7 +82,7 @@ namespace Basalt.LavaLang
                     StringBuilder SubString = new();
                     Index++;
                     for (int SubIndex = 0 + Index; SubIndex < Contents.Length; SubIndex++)
-                    { 
+                    {
                         char CI = Contents[SubIndex];
                         if (CI == '"')
                         {
@@ -104,12 +104,13 @@ namespace Basalt.LavaLang
 
                 if (C == ' ' || C == '\n')
                 {
-                    if (!String.IsNullOrWhiteSpace(Word.ToString()))
+                    if (!string.IsNullOrWhiteSpace(Word.ToString()))
                     {
                         SyntaxMap.Add(Word.ToString());
                     }
                     Word.Clear();
-                } else
+                }
+                else
                 {
                     Word.Append(C);
                 }

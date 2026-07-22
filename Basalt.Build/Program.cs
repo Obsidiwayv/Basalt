@@ -61,7 +61,9 @@ public class BasaltBuildProgram
     public static BasaltProject GetProject(BasaltLavaFile ProjectFile)
     {
         BasaltLanguageParser Parser = new BasaltLanguageLexer(ProjectFile)
-            .PipeIntoParser();
+            .Run()
+            .PipeIntoParser()
+            .Run();
         return Parser.Project;
     }
 }

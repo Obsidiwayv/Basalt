@@ -54,7 +54,8 @@ namespace Basalt.LavaLang.Impl
 
         public static FUseCompiler UseClang(LavaFunctionNode Node, List<string> Params)
         {
-            int LanguageVersion = CompilerFunctions.VerifyLanguageVerson(Params, Node);
+            int LanguageVersion = CompilerFunctions.VerifyLanguageVerson(
+                Params, Node, CompilerLanguage.CPP);
             return new("LLVM", LanguageVersion);
         }
 

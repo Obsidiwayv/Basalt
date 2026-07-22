@@ -35,9 +35,35 @@ namespace Basalt.BackendPipes.LLVM
                     if (CachedLibrary != null)
                     {
                         RequiredLibraryIncludes.Add(string.Join(" ", CachedLibrary.Includes));
-                        RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
+                        if (OperatingSystem.IsWindows())
+                        {
+                            RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
+                        }
+                        else
+                        {
+                            if (CachedLibrary.LibType == ELibraryType.Static)
+                            {
+                                RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
+                            } else
+                            {
+                                RequiredLibraryLinkFiles.Add($"-l{CachedLibrary.Name}");
+                            }
+                        }
+                        BasaltLogger.WriteLine(CachedLibrary.Name);
+                        if (OperatingSystem.IsMacOS()
+                            && CachedLibrary.LibType == ELibraryType.Dynamic
+                            && CompilerMode == EBinaryType.Executable)
+                        {
+                            string LibFileName = $"lib{CachedLibrary.Name}-x{GetOSArch()}.dylib";
+                            File.Move(
+                                Path.Join(
+                                   GetDebugOrReleaseDir(),
+                                   LibFileName),
+                                Path.Join(
+                                    BasaltMacAppPackage.GetOrCreatePackageFolder(this, "Frameworks"),
+                                    LibFileName), true);
+                        }
                     }
-                    ;
                 }
             }
 
@@ -52,7 +78,9 @@ namespace Basalt.BackendPipes.LLVM
                     ThirdPartyLibFolder.Value, $"*{BasaltLavaFile.Extension}", SearchOption.AllDirectories))
                 {
                     BasaltLanguageParser Parser = new BasaltLanguageLexer(new(LavaFile))
-                        .PipeIntoParser();
+                        .Run()
+                        .PipeIntoParser()
+                        .Run();
                     HandleThirdPartyLibrary(Parser.Project);
                 }
             }
@@ -99,6 +127,7 @@ namespace Basalt.BackendPipes.LLVM
             LavaArrayNode? Sources = (LavaArrayNode?)Lib.GetNode("Sources");
 
             LavaArrayNode? Resources = null;
+            // This is a windows only thing
             if (OperatingSystem.IsWindows())
             {
                 Resources = (LavaArrayNode?)Lib.GetNode("ResourcesWin32");
@@ -112,6 +141,8 @@ namespace Basalt.BackendPipes.LLVM
                 foreach (string F in LibFiles.Value)
                 {
                     if (OperatingSystem.IsWindows() && F.EndsWith(".lib"))
+                        ThirdPartyLibraries.LinkFiles.Add(F);
+                    if (OperatingSystem.IsMacOS() && F.EndsWith(".a"))
                         ThirdPartyLibraries.LinkFiles.Add(F);
                 }
             }
@@ -223,7 +254,20 @@ namespace Basalt.BackendPipes.LLVM
             SetCompilerMode(EBinaryType.Executable, null);
             List<string> DebugFlags = GetCompilerDebugFlags();
             List<string> Objects = CompileToObjects();
-            string ExecutableName = Path.Join(OutputDirectory, GetExecutableName());
+            string ExecutableName;
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+            {
+                ExecutableName = Path.Join(OutputDirectory, GetExecutableName());
+            }
+            else
+            {
+                string MacPackageOutput = BasaltMacAppPackage
+                    .GetOrCreatePackageFolder(this, "MacOS");
+
+                ExecutableName = Path.Join(
+                    MacPackageOutput,
+                    GetExecutableName());
+            }
 
             List<string> OSFlags = [];
 
@@ -241,6 +285,15 @@ namespace Basalt.BackendPipes.LLVM
                         [ResourceFile.Value, "/FO", OutputRes]);
 
                     OSFlags.Add(OutputRes);
+                }
+            }
+            if (OperatingSystem.IsMacOS())
+            {
+                string OutputFrameworkPath = BasaltMacAppPackage
+                        .GetOrCreatePackageFolder(this, "Frameworks");
+                if (Directory.Exists(OutputFrameworkPath))
+                {
+                    OSFlags.Add("-Wl,-rpath,@executable_path/../Frameworks");
                 }
             }
 
@@ -277,9 +330,25 @@ namespace Basalt.BackendPipes.LLVM
                         ExtraFlags.Add($"-Wl,/IMPLIB:{LibraryLinkFile}");
 
                         BasaltGlobalFileCache.LibraryCache.Add(
-                            new(Project.FileSource.Name, LibraryLinkFile, Includes));
+                            new(
+                                ProjectName.Value,
+                                ELibraryType.Dynamic,
+                                Project.FileSource.Name, LibraryLinkFile, Includes));
                     }
                     string BinaryName = $"{Path.Join(OutputDirectory, LibraryName)}.{GetLibFileExtension()}";
+                    if (OperatingSystem.IsMacOS())
+                    {
+                        string FolderOutput = Path.Join(
+                            GetDebugOrReleaseDir(),
+                            $"lib{LibraryName}");
+
+                        BinaryName = $"{FolderOutput}.{GetLibFileExtension()}";
+                        BasaltGlobalFileCache.LibraryCache.Add(
+                           new(
+                               ProjectName.Value,
+                               ELibraryType.Dynamic,
+                               Project.FileSource.Name, BinaryName, Includes));
+                    }
                     BasicCompilerBackend.ExecuteTool(GetClangExecutableCommand(false),
                         [$"-o {BinaryName}",
                         OperatingSystem.IsMacOS() ? "-dynamiclib" : "-shared",
@@ -292,18 +361,31 @@ namespace Basalt.BackendPipes.LLVM
                     break;
                 case ELibraryType.Static:
                     string UnixOrWinLib = OperatingSystem.IsWindows() ? ".lib" : ".a";
-                    string LibraryOutputName = $"{Path.Join(BasaltDirectoryTiles.Libraries.Value, LibraryName)}-static.{UnixOrWinLib}";
-                    
-                    string ArchiverTool = OperatingSystem.IsWindows() ? "llvm-lib" : "llvm-ar";
+                    string LibraryOutputName = $"{Path.Join(BasaltDirectoryTiles.Libraries.Value, LibraryName)}-static{UnixOrWinLib}";
+
+                    string ArchiverTool = OperatingSystem.IsWindows()
+                        ? GetLLVMExecutableFromBin("llvm-lib") : "ar";
                     string OutputArgument = OperatingSystem.IsWindows()
                         ? $"/OUT:{LibraryOutputName}"
                         : "rcs";
 
-                    BasicCompilerBackend.ExecuteTool(GetLLVMExecutableFromBin(ArchiverTool), [
+                    List<string> UnixFlags = [];
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        UnixFlags.Add(LibraryOutputName);
+                    }
+
+                    BasicCompilerBackend.ExecuteTool(ArchiverTool, [
                         OutputArgument,
-                            ..Objects]);
+                        ..UnixFlags,
+                        ..Objects]);
                     BasaltGlobalFileCache.LibraryCache.Add(
-                        new(Project.FileSource.Name, LibraryOutputName, Includes));
+                        new(
+                            ProjectName.Value,
+                            ELibraryType.Static,
+                            Project.FileSource.Name,
+                            LibraryOutputName,
+                            Includes));
                     break;
             }
         }

@@ -119,7 +119,7 @@ namespace Basalt.BackendPipes
                 (_, true) => "Developer",
                 _ => "Shipping"
             };
-            return $"{ProjectName}-{ReleaseModel}-{OSName}{ArchName}{(OperatingSystem.IsWindows() ? ".exe" : "")}";
+            return $"{ProjectName.Value}-{ReleaseModel}-{OSName}{ArchName}{(OperatingSystem.IsWindows() ? ".exe" : "")}";
         }
 
         private string UpdateOutputDirectory()
@@ -127,6 +127,10 @@ namespace Basalt.BackendPipes
             LavaStringNode? UserOutputDir = (LavaStringNode?)Project.GetNode("Output");
             if (UserOutputDir != null)
             {
+                if (OperatingSystem.IsMacOS())
+                {
+                    BasaltLogger.WriteLine("The Output attribute is ignored on MacOS and wont be used");
+                }
                 return Path.Join(GetDebugOrReleaseDir(), UserOutputDir.Value);
             } else
             {
@@ -206,6 +210,7 @@ namespace Basalt.BackendPipes
         {
             try
             {
+                Console.WriteLine(string.Join(" ", Flags));
                 Process ToolProcess = new();
                 ToolProcess.StartInfo.FileName = ToolUrl;
                 ToolProcess.StartInfo.Arguments = string.Join(" ", Flags);
