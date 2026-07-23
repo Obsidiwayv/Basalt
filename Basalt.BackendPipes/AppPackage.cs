@@ -9,13 +9,14 @@ public class BasaltMacAppPackage
 
     public static string GetOrCreatePackageFolder(BasicProvider Provider, string FolderName)
     {
-        string PackageFolderOutput = Path.Join(
-            GetFolderName(Provider),
-            FolderName
-        );
+        string PackageFolderOutput = GetPackageName(FolderName, Provider);
         Directory.CreateDirectory(PackageFolderOutput);
         return PackageFolderOutput;
     }
+
+    public static string GetPackageName(string Folder, BasicProvider Provider) => Path.Join(
+            GetFolderName(Provider),
+            Folder);
 
     public static string GetFolderName(BasicProvider Provider) => 
         Path.Combine(Provider.GetDebugOrReleaseDir(), $"{Provider.ProjectName.Value}.app");

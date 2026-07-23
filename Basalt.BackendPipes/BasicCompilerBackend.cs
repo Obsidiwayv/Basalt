@@ -181,7 +181,7 @@ namespace Basalt.BackendPipes
                     Pipeline.CopyFiles(Path, GetDebugOrReleaseDir());
                 }
             }
-            if (DepthLogging) BasaltLogger.WriteLine($"");
+            if (DepthLogging) BasaltLogger.WriteLine($"Finished Layer {BasaltGlobalStats.Depth}");
 
             BasaltGlobalFileCache.WriteIntoCache();
         }
