@@ -164,7 +164,7 @@ namespace Basalt.BackendPipes
                 $"Compile mode is set to %b{BinaryMessage}%c");
         }
 
-        public void Finish(BasaltProject Project)
+        public void Finish(BasaltProject Project, string ProjectName)
         {
             LavaArrayNode? AssetArrayNode = (LavaArrayNode?)Project.GetNode("Assets");
 

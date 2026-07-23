@@ -1,3 +1,6 @@
+@Name "glad"
+@Type "Header"
+
 Includes {
    "Libs/Glad/include"
 }

@@ -1,13 +1,14 @@
 using Basalt.BackendPipes.LLVM;
 using Basalt.LavaLang;
 using Basalt.LavaLang.Functions;
+using Basalt.LavaLang.Impl;
+using Basalt.Tile;
 
 namespace Basalt.BackendPipes.LLVM
 {
     public class MacLLVMInstance(
         SharedLLVMInstance Shared) : ILLVMInstance
     {
-
         private static string LibraryFile(string Name) =>
             $"lib{Name}-x{BasicProvider.GetOSArch()}.dylib";
 
@@ -18,24 +19,29 @@ namespace Basalt.BackendPipes.LLVM
             string MacPackageOutput = BasaltMacAppPackage
                 .GetOrCreatePackageFolder(Shared, "MacOS");
 
+            List<BasaltLibraryCache> CachedDynamicLibraries = [
+                .. BasaltGlobalFileCache
+                    .LibraryCache.Where(L => L.LibType == ELibraryType.Dynamic)];
+
             string ExecutableName = Path.Join(
                 MacPackageOutput,
                 Shared.GetExecutableName());
 
-            List<string> OSFlags = [];
-            string OutputFrameworkPath = BasaltMacAppPackage
-                    .GetOrCreatePackageFolder(Shared, "Frameworks");
-            if (Directory.Exists(OutputFrameworkPath))
+            List<string> PackagingFlags = [];
+            if (CachedDynamicLibraries.Count != 0)
             {
-                OSFlags.Add("-Wl,-rpath,@executable_path/../Frameworks");
+                string OutputFrameworkPath = BasaltMacAppPackage
+                    .GetOrCreatePackageFolder(Shared, "Frameworks");
+                PackagingFlags.Add("-Wl,-rpath,@executable_path/../Frameworks");
             }
 
             BasicCompilerBackend.ExecuteTool(SharedLLVMInstance.GetClangExecutableCommand(false),
                 [$"-o {ExecutableName}",
                 ..DebugFlags,
-                ..OSFlags,
+                ..PackagingFlags,
                 ..Shared.RequiredLibraryLinkFiles,
                 ..Shared.ThirdPartyLibraries.LinkFiles,
+                ..Shared.ThirdPartyLibraries.Names.Select(Lib => $"-l{Lib}"),
                 string.Join(" ", Objects)]);
 
             BasaltGlobalFileCache.PushFile(ExecutableName);
@@ -43,28 +49,59 @@ namespace Basalt.BackendPipes.LLVM
 
         public void RunStaticLibraryTask()
         {
-            throw new NotImplementedException();
+            List<string> Objects = Shared.CompileSourcesToObjects();
+            List<string> Includes = Shared.GetIncludes();
+
+            string Arch = BasicProvider.GetOSArch();
+            string LibraryName = $"{Shared.ProjectName.Value}-x{Arch}";
+
+            string LibraryOutputPath = $"{Path.Join(BasaltDirectoryTiles.Libraries.Value, LibraryName)}-static.a";
+
+            BasicCompilerBackend.ExecuteTool("libtool", [
+                "-static",
+                "-o",
+                LibraryOutputPath,
+                ..Objects]);
+
+            BasaltGlobalFileCache.LibraryCache.Add(
+                new(Shared.ProjectName.Value,
+                    ELibraryType.Static,
+                    Shared.Project.FileSource.Name,
+                    LibraryOutputPath,
+                    Includes));
         }
 
         public void RunDynamicLibraryTask()
         {
-            throw new NotImplementedException();
+            List<string> Objects = Shared.CompileSourcesToObjects();
+            List<string> Includes = Shared.GetIncludes();
+            List<string> ExtraFlags = [];
+
+            string BinaryName = Path.Join(
+                Shared.GetDebugOrReleaseDir(),
+                LibraryFile(Shared.ProjectName.Value));
+
+            BasaltGlobalFileCache.LibraryCache.Add(
+               new(
+                   Shared.ProjectName.Value,
+                   ELibraryType.Dynamic,
+                   Shared.Project.FileSource.Name, BinaryName, Includes));
+
+            BasicCompilerBackend.ExecuteTool(SharedLLVMInstance.GetClangExecutableCommand(false),
+                        [$"-o {BinaryName}",
+                        "-dynamiclib",
+                        ..ExtraFlags,
+                        ..Shared.GetCompilerDebugFlags(),
+                        ..Shared.ThirdPartyLibraries.LinkFiles,
+                        string.Join(" ", Objects)]);
+
+            BasaltGlobalFileCache.PushFile(BinaryName);
         }
 
+        // This method is unused on MacOS as dylibs 
         public void HandleCachedLibrary(BasaltLibraryCache CachedLibrary)
         {
-            if (CachedLibrary.LibType == ELibraryType.Dynamic
-                && Shared.CompilerMode == EBinaryType.Executable)
-            {
-                string LibFileName = LibraryFile(CachedLibrary.Name);
-                File.Move(
-                    Path.Join(
-                       Shared.GetDebugOrReleaseDir(),
-                       LibFileName),
-                    Path.Join(
-                        BasaltMacAppPackage.GetOrCreatePackageFolder(Shared, "Frameworks"),
-                        LibFileName), true);
-            }
+            return;
         }
     }
 }

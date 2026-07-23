@@ -1,4 +1,5 @@
 ﻿using Basalt.LavaLang;
+using Basalt.LavaLang.Entities;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
 using Basalt.Tile;
@@ -42,7 +43,7 @@ namespace Basalt.BackendPipes.LLVM
                 {
                     BasaltLanguageParser Parser = new BasaltLanguageLexer(new(LavaFile))
                         .Run()
-                        .PipeIntoParser()
+                        .PipeIntoParser(null) // Third-Party Libraries dont need a parent
                         .Run();
                     HandleThirdPartyLibrary(Parser.Project);
                 }
@@ -88,6 +89,11 @@ namespace Basalt.BackendPipes.LLVM
             LavaArrayNode? Headers = (LavaArrayNode?)Lib.GetNode("Includes");
             LavaArrayNode? LibFiles = (LavaArrayNode?)Lib.GetNode("Link");
             LavaArrayNode? Sources = (LavaArrayNode?)Lib.GetNode("Sources");
+            LavaStringNode LibName = (LavaStringNode?)Lib.GetNode("Name")
+                ?? throw new BasaltException("Unknown Library!");
+            LavaStringNode? LibType = (LavaStringNode?)Lib.GetNode("Type");
+
+            List<string> SecondaryLibFiles = [];
 
             LavaArrayNode? Resources = null;
             // This is a windows only thing
@@ -95,17 +101,27 @@ namespace Basalt.BackendPipes.LLVM
             {
                 Resources = (LavaArrayNode?)Lib.GetNode("ResourcesWin32");
             }
+            if (OperatingSystem.IsMacOS())
+            {
+                Resources = (LavaArrayNode?)Lib.GetNode("ResourcesMac");
+            }
 
             if (Headers != null) foreach (string IncludeDir in Headers.Value)
                 ThirdPartyLibraries.Headers.Add($"-I{IncludeDir}");
 
             if (LibFiles != null)
             {
-                foreach (string F in LibFiles.Value)
+                SecondaryLibFiles = LibFiles.Value;
+                if (Resources != null && OperatingSystem.IsMacOS())
+                {
+                    SecondaryLibFiles = [..LibFiles.Value, ..Resources.Value];
+                }
+                foreach (string F in SecondaryLibFiles)
                 {
                     if (OperatingSystem.IsWindows() && F.EndsWith(".lib"))
                         ThirdPartyLibraries.LinkFiles.Add(F);
-                    if (OperatingSystem.IsMacOS() && F.EndsWith(".a"))
+                    if (OperatingSystem.IsMacOS() 
+                            && F.EndsWith(".a") || F.EndsWith(".dylib"))
                         ThirdPartyLibraries.LinkFiles.Add(F);
                 }
             }

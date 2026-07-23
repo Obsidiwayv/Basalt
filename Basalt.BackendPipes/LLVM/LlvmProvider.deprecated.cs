@@ -82,7 +82,7 @@ namespace Basalt.BackendPipes.LLVM
                 {
                     BasaltLanguageParser Parser = new BasaltLanguageLexer(new(LavaFile))
                         .Run()
-                        .PipeIntoParser()
+                        .PipeIntoParser(null)
                         .Run();
                     HandleThirdPartyLibrary(Parser.Project);
                 }
@@ -130,7 +130,7 @@ namespace Basalt.BackendPipes.LLVM
             LavaArrayNode? Sources = (LavaArrayNode?)Lib.GetNode("Sources");
 
             LavaArrayNode? Resources = null;
-            // This is a windows only thing
+
             if (OperatingSystem.IsWindows())
             {
                 Resources = (LavaArrayNode?)Lib.GetNode("ResourcesWin32");

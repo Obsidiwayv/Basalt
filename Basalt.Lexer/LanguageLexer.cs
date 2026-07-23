@@ -21,9 +21,9 @@ namespace Basalt.LavaLang
         /**
          * Creates a new parser instance, runs, and then returns it
          */
-        public BasaltLanguageParser PipeIntoParser()
+        public BasaltLanguageParser PipeIntoParser(BasaltProject? Parent)
         {
-            return new BasaltLanguageParser(SyntaxMap, File);
+            return new BasaltLanguageParser(SyntaxMap, File, Parent);
         }
 
         private void Read(char[] Contents)

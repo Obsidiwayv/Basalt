@@ -63,11 +63,28 @@ namespace Basalt.BackendPipes.LLVM
                     break;
             }
         }
-        
 
-        public void Finish(BasaltProject Project)
+        public void Finish(BasaltProject Project, string ProjectName)
         {
-            throw new NotImplementedException();
+            if (SharedInstance.CompilerMode != EBinaryType.Executable) return;
+
+            string AppFolderName = BasaltMacAppPackage.GetAppFolderFromName(
+                SharedInstance, ProjectName);
+
+            if (OperatingSystem.IsMacOS() 
+                && Directory.Exists(AppFolderName))
+            {
+                foreach (string DylibFile in Directory.EnumerateFiles(
+                    SharedInstance.GetDebugOrReleaseDir(), "*.dylib", SearchOption.TopDirectoryOnly))
+                {
+                    File.Move(
+                        DylibFile,
+                        Path.Join(
+                            BasaltMacAppPackage
+                                .GetOrCreateNamedPackageFolder(SharedInstance, $"{ProjectName}.app", "Frameworks"),
+                            Path.GetFileName(DylibFile)), true);
+                }
+            }
         }
     }
 }

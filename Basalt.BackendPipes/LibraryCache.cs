@@ -22,5 +22,7 @@ namespace Basalt.BackendPipes
         public List<string> Headers = [];
 
         public List<string> Sources = [];
+
+        public List<string> Names = [];
     }
 }

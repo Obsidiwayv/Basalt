@@ -24,6 +24,6 @@ namespace Basalt.BackendPipes
          * Method to be called when compiling is finished
          * > Copies files to the output directory
          */
-        abstract void Finish(BasaltProject Project);
+        abstract void Finish(BasaltProject Project, string ProjectName);
     }
 }

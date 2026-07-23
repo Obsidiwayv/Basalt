@@ -6,9 +6,12 @@ using System.Text;
 
 namespace Basalt.LavaLang
 {
-    public class BasaltProject(List<IPartialNode> Nodes, BasaltLavaFile ProjectFile)
+    public class BasaltProject(
+        List<IPartialNode> Nodes, BasaltLavaFile ProjectFile, BasaltProject? Parent = null)
     {
         public BasaltLavaFile FileSource { get; } = ProjectFile;
+
+        public BasaltProject? ParentProject { get; } = Parent;
 
         public List<IPartialNode> Nodes { get; } = Nodes;
 
