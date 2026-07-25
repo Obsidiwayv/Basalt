@@ -10,9 +10,9 @@ namespace Basalt.Tile
         {
             {"%r", "\u001b[91m"},
             {"%g", "\u001b[92m"},
-            {"%b", "\u001b[94m"},
+            {"%b", "\u001b[96m"},
             {"%m", "\u001b[95m"},
-            {"%c", "\u001b[0m"}
+            {"%c", "\u001b[0m"},
         };
 
         public static void WriteLine(string contents)

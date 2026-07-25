@@ -9,6 +9,8 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
+using System.Xml;
 
 namespace Basalt.BackendPipes
 {
@@ -18,7 +20,14 @@ namespace Basalt.BackendPipes
         LLVM
     }
 
-    public enum OSInformation 
+    public enum EReleaseMode
+    {
+        Shipping,
+        Preview,
+        Debug
+    }
+
+    public enum OSInformation
     {
         Windows,
         MacOS,
@@ -38,6 +47,14 @@ namespace Basalt.BackendPipes
 
         public bool DepthLogging { get; set; } = false;
 
+        public bool PackageIntoZip { get; set; } = false;
+
+        public bool ReleaseMode { get; } = true;
+
+        public static bool VerboseMode { get; set; } = false;
+
+        public EReleaseMode ReleaseType { get; } = EReleaseMode.Shipping;
+
         public bool HasFlags { get; set; } = false;
 
         // This is obsolete now, but i wont remove it until later
@@ -46,6 +63,8 @@ namespace Basalt.BackendPipes
         public BasaltProject Project { get; }
 
         public LavaStringNode ProjectName { get; }
+
+        public LavaStringNode? VersionNumber { get; }
 
         public string OutputDirectory { get; set; }
 
@@ -63,6 +82,8 @@ namespace Basalt.BackendPipes
             ProjectName = (LavaStringNode?)Project.GetNode("name")
                 ?? throw new BasaltException("Project is missing a name attribute!");
 
+            VersionNumber = (LavaStringNode?)Project.GetNode("AppVersion");
+
             this.UsingDatabaseFile = UsingDatabaseFile;
 
             // Ignore already set flags for performance
@@ -75,13 +96,27 @@ namespace Basalt.BackendPipes
                     {
                         case "-debug":
                             DebugMode = true;
+                            ReleaseMode = false;
+                            ReleaseType = EReleaseMode.Debug;
                             BasaltGlobalFileCache.DebugMode = true;
                             break;
                         case "-staging":
                             PreviewMode = true;
+                            ReleaseMode = false;
+                            ReleaseType = EReleaseMode.Preview;
                             break;
                         case "-ld":
                             DepthLogging = true;
+                            break;
+                        case "-zip":
+                            if (DebugMode)
+                            {
+                                throw new BasaltException("Apps cannot be packaged in debug mode!");
+                            }
+                            PackageIntoZip = true;
+                            break;
+                        case "-verbose":
+                            VerboseMode = true;
                             break;
                     }
                 }
@@ -109,7 +144,7 @@ namespace Basalt.BackendPipes
             _ => throw new BasaltException("Unknown Operating system library type")
         };
 
-        public string GetExecutableName()
+        public string GetExecutableName(bool WithExt = false)
         {
             string ArchName = GetOSArch();
             string OSName = BasicCompilerBackend.GetOSName();
@@ -119,7 +154,8 @@ namespace Basalt.BackendPipes
                 (_, true) => "Developer",
                 _ => "Shipping"
             };
-            return $"{ProjectName}-{ReleaseModel}-{OSName}{ArchName}{(OperatingSystem.IsWindows() ? ".exe" : "")}";
+            string Ext = OperatingSystem.IsWindows() && WithExt ? ".exe" : "";
+            return $"{ProjectName.Value}-{ReleaseModel}-{OSName}{ArchName}{Ext}";
         }
 
         private string UpdateOutputDirectory()
@@ -127,8 +163,13 @@ namespace Basalt.BackendPipes
             LavaStringNode? UserOutputDir = (LavaStringNode?)Project.GetNode("Output");
             if (UserOutputDir != null)
             {
+                if (OperatingSystem.IsMacOS())
+                {
+                    BasaltLogger.WriteLine("The Output attribute is ignored on MacOS and wont be used");
+                }
                 return Path.Join(GetDebugOrReleaseDir(), UserOutputDir.Value);
-            } else
+            }
+            else
             {
                 return GetDebugOrReleaseDir();
             }
@@ -138,11 +179,20 @@ namespace Basalt.BackendPipes
         {
             string DebugDir = BasaltDirectoryTiles.Debug.Value;
             string ReleaseDir = BasaltDirectoryTiles.Release.Value;
+            string PreviewDir = BasaltDirectoryTiles.Preview.Value;
+
+            if (PreviewMode && DebugMode)
+                throw new BasaltException("Preview and Debug modes cannot be active at the same time!");
 
             if (DebugMode)
             {
                 Directory.CreateDirectory(DebugDir);
                 return DebugDir;
+            }
+            else if (PreviewMode)
+            {
+                Directory.CreateDirectory(PreviewDir);
+                return PreviewDir;
             }
             else
             {
@@ -160,7 +210,8 @@ namespace Basalt.BackendPipes
                 $"Compile mode is set to %b{BinaryMessage}%c");
         }
 
-        public void Finish(BasaltProject Project)
+        // Old code, this is no longer used - kept for reference
+        public void Finish(BasaltProject Project, string ProjectName)
         {
             LavaArrayNode? AssetArrayNode = (LavaArrayNode?)Project.GetNode("Assets");
 
@@ -177,7 +228,7 @@ namespace Basalt.BackendPipes
                     Pipeline.CopyFiles(Path, GetDebugOrReleaseDir());
                 }
             }
-            if (DepthLogging) BasaltLogger.WriteLine($"");
+            if (DepthLogging) BasaltLogger.WriteLine($"Finished Layer {BasaltGlobalStats.Depth}");
 
             BasaltGlobalFileCache.WriteIntoCache();
         }
@@ -202,24 +253,38 @@ namespace Basalt.BackendPipes
 
     public class BasicCompilerBackend
     {
+        private static readonly JsonSerializerOptions JsonOutputOptions = new() 
+        { 
+            WriteIndented = true ,
+            
+        };
         public static void ExecuteTool(string ToolUrl, List<string> Flags)
         {
             try
             {
+                if (BasicProvider.VerboseMode)
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(new
+                    {
+                        command = ToolUrl,
+                        arguments = string.Join(" ", Flags)
+                    }, JsonOutputOptions));
+                } 
                 Process ToolProcess = new();
                 ToolProcess.StartInfo.FileName = ToolUrl;
                 ToolProcess.StartInfo.Arguments = string.Join(" ", Flags);
                 ToolProcess.StartInfo.RedirectStandardOutput = true;
                 ToolProcess.Start();
 
-                while(!ToolProcess.StandardOutput.EndOfStream)
+                while (!ToolProcess.StandardOutput.EndOfStream)
                 {
                     string? Line = ToolProcess.StandardOutput.ReadLine();
                     string? LineErr = ToolProcess.StandardError.ReadLine();
                     if (!string.IsNullOrEmpty(Line)) BasaltLogger.WriteLine(Line);
                     if (!string.IsNullOrEmpty(LineErr)) BasaltLogger.WriteLine(LineErr);
                 }
-            } catch(BasaltException e)
+            }
+            catch (BasaltException e)
             {
                 throw new BasaltException($"Could not compile project, reason:\n {e}");
             }
@@ -250,11 +315,11 @@ namespace Basalt.BackendPipes
         {
             foreach (IPartialNode Node in Nodes.Where(NF => NF.Type == ENodeEntityType.Array))
             {
-                if (OperatingSystem.IsWindows() && Node.Key == "Win32Flags") 
+                if (OperatingSystem.IsWindows() && Node.Key == "Win32Flags")
                     return ((LavaArrayNode)Node).Value;
-                if (OperatingSystem.IsLinux() && Node.Key == "LinuxFlags") 
+                if (OperatingSystem.IsLinux() && Node.Key == "LinuxFlags")
                     return ((LavaArrayNode)Node).Value;
-                if (OperatingSystem.IsMacOS() && Node.Key == "DarwinFlags") 
+                if (OperatingSystem.IsMacOS() && Node.Key == "DarwinFlags")
                     return ((LavaArrayNode)Node).Value;
             }
             return [];

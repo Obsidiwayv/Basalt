@@ -1,9 +1,15 @@
+@Name "glfw"
+
 Includes {
    "Libs/Glfw/include"
 }
 
 ResourcesWin32 {
    "Libs/Glfw/glfw3.dll"
+}
+
+ResourcesMac {
+   "Libs/Glfw/libglfw.3.dylib"
 }
 
 Link {

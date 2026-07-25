@@ -1,4 +1,5 @@
 ﻿using Basalt.LavaLang;
+using Basalt.LavaLang.Entities;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
 using Basalt.Tile;
@@ -9,36 +10,27 @@ using System.Text;
 namespace Basalt.BackendPipes.LLVM
 {
 
-    public class SharedLlvmInstance : BasicProvider, IProvider
+    public interface ILLVMInstance
+    {
+        public void RunExecutableTask();
+        public void RunStaticLibraryTask();
+        public void RunDynamicLibraryTask();
+        public void HandleCachedLibrary(BasaltLibraryCache CachedLibrary);
+        public void HandleFinish();
+    }
+
+    public class SharedLLVMInstance : BasicProvider
     {
         public FUseCompiler CompilerMetadata { get; }
-        private List<string> RequiredLibraryIncludes { get; } = [];
-        private List<string> RequiredLibraryLinkFiles { get; } = [];
-        private BasaltThirdPartyLibraries ThirdPartyLibraries = new();
+        public List<string> RequiredLibraryIncludes { get; } = [];
+        public List<string> RequiredLibraryLinkFiles { get; } = [];
+        public BasaltThirdPartyLibraries ThirdPartyLibraries = new();
 
-        public SharedLlvmInstance(BasaltProject Project,
+        public SharedLLVMInstance(BasaltProject Project,
             FUseCompiler CompilerMetadata,
-            string[] Args,
-            OSInformation LLVMOSInstance) : base(Project, CompilerMetadata.CompilerName, Args, true)
+            string[] Args) : base(Project, CompilerMetadata.CompilerName, Args, true)
         {
             this.CompilerMetadata = CompilerMetadata;
-
-            LavaArrayNode? Dependencies = (LavaArrayNode?)Project.GetNode("Using");
-            if (Dependencies != null)
-            {
-                foreach (string ProjectFileDependency in Dependencies.Value)
-                {
-                    BasaltLibraryCache? CachedLibrary = BasaltGlobalFileCache
-                        .LibraryCache.Find(Lib => Lib.ProjectFile == ProjectFileDependency);
-
-                    // Take the library file we cached earlier and use that to link to the final executable
-                    if (CachedLibrary != null)
-                    {
-                        RequiredLibraryIncludes.Add(string.Join(" ", CachedLibrary.Includes));
-                        RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
-                    }
-                }
-            }
 
             // @ThirdParty "Libs"
             LavaStringNode? ThirdPartyLibFolder = (LavaStringNode?)Project.GetNode("ThirdParty");
@@ -51,7 +43,9 @@ namespace Basalt.BackendPipes.LLVM
                     ThirdPartyLibFolder.Value, $"*{BasaltLavaFile.Extension}", SearchOption.AllDirectories))
                 {
                     BasaltLanguageParser Parser = new BasaltLanguageLexer(new(LavaFile))
-                        .PipeIntoParser();
+                        .Run()
+                        .PipeIntoParser(null) // Third-Party Libraries dont need a parent
+                        .Run();
                     HandleThirdPartyLibrary(Parser.Project);
                 }
             }
@@ -62,7 +56,7 @@ namespace Basalt.BackendPipes.LLVM
             LanguageUseC?.Invoke<bool>();
         }
 
-        private static string GetLLVMExecutableFromBin(string ExecutableName)
+        public static string GetLLVMExecutableFromBin(string ExecutableName)
         {
             StringBuilder ClangPath = new();
             if (OperatingSystem.IsWindows())
@@ -73,17 +67,20 @@ namespace Basalt.BackendPipes.LLVM
             return OperatingSystem.IsWindows() ? $"{ClangPath}.exe" : ClangPath.ToString();
         }
 
-        private static string GetClangExecutableCommand(bool UsingC)
+        public static string GetClangExecutableCommand(bool UsingC)
         {
             return GetLLVMExecutableFromBin(
                 UsingC ? "clang" : "clang++");
         }
 
-        private List<string> GetCompilerDebugFlags()
+        public List<string> GetCompilerDebugFlags()
         {
-            if (!DebugMode) return [];
             List<string> DebugFlags = [];
-            DebugFlags.Add("-g3");
+            if (DebugMode || PreviewMode)
+            {
+                DebugFlags.Add("-g3");
+            }
+            if (!DebugMode) return DebugFlags;
             DebugFlags.Add("-O0");
             DebugFlags.Add("-fsanitize=undefined");
             DebugFlags.Add("-fno-omit-frame-pointer");
@@ -96,11 +93,20 @@ namespace Basalt.BackendPipes.LLVM
             LavaArrayNode? Headers = (LavaArrayNode?)Lib.GetNode("Includes");
             LavaArrayNode? LibFiles = (LavaArrayNode?)Lib.GetNode("Link");
             LavaArrayNode? Sources = (LavaArrayNode?)Lib.GetNode("Sources");
+            LavaStringNode LibName = (LavaStringNode?)Lib.GetNode("Name")
+                ?? throw new BasaltException("Unknown Library!");
+
+            List<string> SecondaryLibFiles = [];
 
             LavaArrayNode? Resources = null;
+            // This is a windows only thing
             if (OperatingSystem.IsWindows())
             {
                 Resources = (LavaArrayNode?)Lib.GetNode("ResourcesWin32");
+            }
+            if (OperatingSystem.IsMacOS())
+            {
+                Resources = (LavaArrayNode?)Lib.GetNode("ResourcesMac");
             }
 
             if (Headers != null) foreach (string IncludeDir in Headers.Value)
@@ -108,9 +114,17 @@ namespace Basalt.BackendPipes.LLVM
 
             if (LibFiles != null)
             {
-                foreach (string F in LibFiles.Value)
+                SecondaryLibFiles = LibFiles.Value;
+                if (Resources != null && OperatingSystem.IsMacOS())
+                {
+                    SecondaryLibFiles = [..LibFiles.Value, ..Resources.Value];
+                }
+                foreach (string F in SecondaryLibFiles)
                 {
                     if (OperatingSystem.IsWindows() && F.EndsWith(".lib"))
+                        ThirdPartyLibraries.LinkFiles.Add(F);
+                    if (OperatingSystem.IsMacOS() 
+                            && F.EndsWith(".a") || F.EndsWith(".dylib"))
                         ThirdPartyLibraries.LinkFiles.Add(F);
                 }
             }
@@ -135,7 +149,7 @@ namespace Basalt.BackendPipes.LLVM
                 ThirdPartyLibraries.Sources.AddRange(Sources.Value);
         }
 
-        private List<string> GetIncludes()
+        public List<string> GetIncludes()
         {
             List<string> IncludeList = [];
             LavaArrayNode? IncludeDirs = (LavaArrayNode?)Project.GetNode("Includes");
@@ -158,12 +172,13 @@ namespace Basalt.BackendPipes.LLVM
             return [];
         }
 
-        private List<string> CompileToObjects()
+        public List<string> CompileSourcesToObjects(EReleaseMode ReleaseMode = EReleaseMode.Shipping)
         {
             LavaArrayNode SourcesNode = (LavaArrayNode?)Project.GetNode("Sources")
                 ?? throw new BasaltException("Project cannot be compiled: Missing Sources Array");
 
             List<string> ObjectFilePaths = [];
+            List<string> ExtraFlags = [];
 
             string OutputPath = Path.Combine(
                 BasaltDirectoryTiles.Object.Value,
@@ -180,6 +195,10 @@ namespace Basalt.BackendPipes.LLVM
             {
                 SourcesNode.Value.AddRange(ThirdPartyLibraries.Sources);
             }
+            if (ReleaseMode == EReleaseMode.Shipping)
+            {
+                ExtraFlags.Add("-g");
+            }
             foreach (string SourceFile in SourcesNode.Value)
             {
                 string SourceNameWithObject = Path.Combine(
@@ -190,6 +209,7 @@ namespace Basalt.BackendPipes.LLVM
                 List<string> Includes = GetIncludes();
 
                 List<string> Args = [
+                    ..ExtraFlags,
                     "-c", SourceFile,
                     $"-o {SourceNameWithObject}",
                     ..Includes,
@@ -206,6 +226,7 @@ namespace Basalt.BackendPipes.LLVM
                 }
 
                 string CompilerPath = GetClangExecutableCommand(bIsCFile);
+                BasaltLogger.WriteLine($"%m{SourceFile}%c >>> %m{SourceNameWithObject}%c");
                 BasicCompilerBackend.ExecuteTool(CompilerPath, Args);
 
                 BasaltCompilationDatabase.PushEntry(
@@ -215,65 +236,6 @@ namespace Basalt.BackendPipes.LLVM
             }
 
             return ObjectFilePaths;
-        }
-
-        public void BuildExecutableTask()
-        {
-            SetCompilerMode(EBinaryType.Executable, null);
-            List<string> DebugFlags = GetCompilerDebugFlags();
-            List<string> Objects = CompileToObjects();
-            string ExecutableName = Path.Join(OutputDirectory, GetExecutableName());
-
-            List<string> OSFlags = [];
-
-            if (OperatingSystem.IsWindows())
-            {
-                OSFlags.Add("-Wl,/NOIMPLIB");
-
-                LavaStringNode? ResourceFile = (LavaStringNode?)Project.GetNode("RCFile");
-                if (ResourceFile != null)
-                {
-                    string OutputDir = "Bin/Resource";
-                    string OutputRes = Path.Join(OutputDir, $"{Path.GetFileNameWithoutExtension(ResourceFile.Value)}.res");
-                    Directory.CreateDirectory(OutputDir);
-                    BasicCompilerBackend.ExecuteTool(GetLLVMExecutableFromBin("llvm-rc"),
-                        [ResourceFile.Value, "/FO", OutputRes]);
-
-                    OSFlags.Add(OutputRes);
-                }
-            }
-
-            BasicCompilerBackend.ExecuteTool(GetClangExecutableCommand(false),
-                [$"-o {ExecutableName}",
-                ..DebugFlags,
-                ..OSFlags,
-                ..RequiredLibraryLinkFiles,
-                ..ThirdPartyLibraries.LinkFiles,
-                string.Join(" ", Objects)]);
-
-            BasaltGlobalFileCache.PushFile(ExecutableName);
-        }
-
-        public void BuildStaticLibrary()
-        {
-            throw new BasaltException("This Method is not supported on this OS");
-        }
-
-        public void BuildDynamicLibrary()
-        {
-            throw new BasaltException("This Method is not supported on this OS");
-        }
-
-        public void BuildExecutable()
-        {
-            throw new BasaltException("This Method is not supported on this OS");
-        }
-
-        public void BuildLibraryTask(ELibraryType LibraryType)
-        {
-            SetCompilerMode(EBinaryType.Library, LibraryType);
-
-            
         }
     }
 }

@@ -1,7 +1,7 @@
 #include "TestHeader.hpp"
 #include "glad/gl.h"
 #include "GLFW/glfw3.h"
-#include <gl/gl.h>
+#include <glad/gl.h>
 
 int main() {
     glfwInit();

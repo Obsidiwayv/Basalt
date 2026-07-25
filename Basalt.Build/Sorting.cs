@@ -24,15 +24,18 @@ namespace Basalt.Build
             foreach (string Dependent in Dependencies.Value)
             {
                 BasaltProject ChildProject = BasaltBuildProgram.GetProject(
-                    new BasaltLavaFile(Dependent));
-                Visit(ChildProject, Graph);
+                    new BasaltLavaFile(Dependent), Project);
+                Visit(ChildProject, Project, Graph);
             }
 
             Graph.Add(Project);
             return Graph;
         }
 
-        private static void Visit(BasaltProject Project, List<BasaltProject> GraphList)
+        private static void Visit(
+            BasaltProject Project, 
+            BasaltProject Parent,
+            List<BasaltProject> GraphList)
         {
             // Skip the project if the hashset already contains it, so we dont build the project twice
             if (VisitedProjects.Contains(Project.FileSource.Name)) return;
@@ -44,8 +47,8 @@ namespace Basalt.Build
                 foreach (string Dependent in Dependencies.Value)
                 {
                     BasaltProject ChildParser = BasaltBuildProgram.GetProject(
-                        new BasaltLavaFile(Dependent));
-                    Visit(ChildParser, GraphList);
+                        new BasaltLavaFile(Dependent), Parent);
+                    Visit(ChildParser, Parent, GraphList);
                 }
             }
             GraphList.Add(Project);

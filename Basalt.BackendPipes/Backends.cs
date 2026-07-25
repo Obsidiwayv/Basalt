@@ -26,7 +26,8 @@ namespace Basalt.BackendPipes
                 {
                     case "UseClang":
                         CompilerFunctions++;
-                        ProviderBackend = new LlvmProvider(Project, NodeFunction.Invoke<FUseCompiler>(), Args);
+                        ProviderBackend = new LLVMProvider(
+                            Project, NodeFunction.Invoke<FUseCompiler>(), Args);
                         break;
                 }
             }
@@ -41,7 +42,7 @@ namespace Basalt.BackendPipes
             BasaltLogger.WriteLine("No function declaring a compiler were used, defaulting to %bLLVM%c");
 
             // Creating a basic FUseCompiler class because there was no function in the project file
-            return new LlvmProvider(Project, new("LLVM", BasaltDefaults.CPP), Args);
+            return new LLVMProvider(Project, new("LLVM", BasaltDefaults.CPP), Args);
         }
     }
 }

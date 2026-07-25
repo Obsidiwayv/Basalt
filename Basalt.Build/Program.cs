@@ -16,7 +16,12 @@ public class BasaltBuildProgram
         // Verify the directories before starting the compiler
         BasaltDirectoryTiles.Verify();
 
-        BasaltProject ProjectParent = GetProject(ProjectFile);
+        // This is the parent project, everything will be built into the final app if its on macOS
+        BasaltProject ProjectParent = GetProject(ProjectFile, null);
+
+        LavaStringNode ParentProjectName = (LavaStringNode?)
+            ProjectParent.GetNode("name")
+            ?? throw new BasaltException("Project parent name is missing!");
 
         List<BasaltProject> ProjectGraph = BasaltTopologicalSorting.BuildDepedencyGraph(ProjectParent);
 
@@ -38,7 +43,7 @@ public class BasaltBuildProgram
                     break;
             }
 
-            Provider.Finish(Project);
+            Provider.Finish(Project, ParentProjectName.Value);
         }
 
         BasaltCompilationDatabase.WriteFile();
@@ -58,10 +63,12 @@ public class BasaltBuildProgram
         return new("Build.lava");
     }
 
-    public static BasaltProject GetProject(BasaltLavaFile ProjectFile)
+    public static BasaltProject GetProject(BasaltLavaFile ProjectFile, BasaltProject? Parent)
     {
         BasaltLanguageParser Parser = new BasaltLanguageLexer(ProjectFile)
-            .PipeIntoParser();
+            .Run()
+            .PipeIntoParser(Parent)
+            .Run();
         return Parser.Project;
     }
 }
