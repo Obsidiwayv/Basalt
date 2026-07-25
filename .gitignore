@@ -1,4 +1,10 @@
-bin
+Debug
+Release
+Preview
+Libraries
+Object
 obj
+.hashes
+.hashes_debug
 .cache
 .vs

@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Basalt.LavaLang;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
@@ -35,6 +36,7 @@ namespace Basalt.BackendPipes.LLVM
                     // Take the library file we cached earlier and use that to link to the final executable
                     if (CachedLibrary != null)
                     {
+                        SharedInstance.RequiredLibraryIncludes.Add(string.Join(" ", CachedLibrary.Includes));
                         Instance.HandleCachedLibrary(CachedLibrary);
                     }
                 }
@@ -66,12 +68,14 @@ namespace Basalt.BackendPipes.LLVM
 
         public void Finish(BasaltProject Project, string ProjectName)
         {
+            FinishAssets();
+            Instance.HandleFinish();
             if (SharedInstance.CompilerMode != EBinaryType.Executable) return;
 
             string AppFolderName = BasaltMacAppPackage.GetAppFolderFromName(
                 SharedInstance, ProjectName);
 
-            if (OperatingSystem.IsMacOS() 
+            if (OperatingSystem.IsMacOS()
                 && Directory.Exists(AppFolderName))
             {
                 foreach (string DylibFile in Directory.EnumerateFiles(
@@ -85,6 +89,28 @@ namespace Basalt.BackendPipes.LLVM
                             Path.GetFileName(DylibFile)), true);
                 }
             }
+
+            if (SharedInstance.PackageIntoZip)
+            {
+                string FilePath = Path.Join("Bin", $"{SharedInstance.GetExecutableName(false)}.zip");
+
+                // Delete the old zip file since dotnet doesnt do it automcatically
+                if (File.Exists(FilePath)) File.Delete(FilePath);
+
+                ZipFile.CreateFromDirectory(
+                    SharedInstance.GetDebugOrReleaseDir(),
+                    FilePath,
+                    CompressionLevel.Optimal, false
+                );
+            }
+        }
+
+        private void FinishAssets()
+        {
+            if (SharedInstance.DepthLogging)
+                BasaltLogger.WriteLine($"%bFinished Layer {BasaltGlobalStats.Depth}%c");
+
+            BasaltGlobalFileCache.WriteIntoCache();
         }
     }
 }

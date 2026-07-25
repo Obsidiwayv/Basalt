@@ -12,6 +12,7 @@ namespace Basalt.BackendPipes.LLVM
 {
     // This code was getting harder to maintain properly
     // so it was split it up into os specifc llvm classes
+    // Its being kept however for reference
     [Obsolete("Replaced with LLVMProvider")]
     public class LlvmProvider : BasicProvider, IProvider
     {

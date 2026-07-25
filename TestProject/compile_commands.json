@@ -3,6 +3,7 @@
     "directory": "/Users/wayv/Documents/Basalt/TestProject",
     "arguments": [
       "clang++",
+      "-g",
       "-c",
       "TestLibB/theb.cc",
       "-o Bin/Object/TestLibB/theb.o",
@@ -15,10 +16,12 @@
     "directory": "/Users/wayv/Documents/Basalt/TestProject",
     "arguments": [
       "clang++",
+      "-g",
       "-c",
       "TestLib/thea.cc",
       "-o Bin/Object/TestLibA/thea.o",
       "-ITestLib/Inc",
+      "-ITestLibB/Inc",
       "-std=c++20"
     ],
     "file": "TestLib/thea.cc"
@@ -27,6 +30,7 @@
     "directory": "/Users/wayv/Documents/Basalt/TestProject",
     "arguments": [
       "clang++",
+      "-g",
       "-c",
       "TestLibC/thec.cc",
       "-o Bin/Object/TestLibC/thec.o",
@@ -39,12 +43,15 @@
     "directory": "/Users/wayv/Documents/Basalt/TestProject",
     "arguments": [
       "clang++",
+      "-g",
       "-c",
       "Source/Main.cc",
       "-o Bin/Object/Testing/Main.o",
       "-IHeaders",
       "-ILibs/Glad/include",
       "-ILibs/Glfw/include",
+      "-ITestLib/Inc",
+      "-ITestLibC/Inc",
       "-std=c++20"
     ],
     "file": "Source/Main.cc"
@@ -53,12 +60,15 @@
     "directory": "/Users/wayv/Documents/Basalt/TestProject",
     "arguments": [
       "clang++",
+      "-g",
       "-c",
       "Source/TestHeader.cc",
       "-o Bin/Object/Testing/TestHeader.o",
       "-IHeaders",
       "-ILibs/Glad/include",
       "-ILibs/Glfw/include",
+      "-ITestLib/Inc",
+      "-ITestLibC/Inc",
       "-std=c++20"
     ],
     "file": "Source/TestHeader.cc"
@@ -67,12 +77,15 @@
     "directory": "/Users/wayv/Documents/Basalt/TestProject",
     "arguments": [
       "clang",
+      "-g",
       "-c",
       "Libs/Glad/src/gl.c",
       "-o Bin/Object/Testing/gl.o",
       "-IHeaders",
       "-ILibs/Glad/include",
-      "-ILibs/Glfw/include"
+      "-ILibs/Glfw/include",
+      "-ITestLib/Inc",
+      "-ITestLibC/Inc"
     ],
     "file": "Libs/Glad/src/gl.c"
   }

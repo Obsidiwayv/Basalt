@@ -11,16 +11,20 @@ namespace Basalt.Tile
             new("binary", @"Bin"),
             new("program_bin_dev", @"Bin/Debug", CheckPriority.None),
             new("program_bin_shipping", @"Bin/Release", CheckPriority.None),
+            new("program_bin_staging", @"Bin/Preview", CheckPriority.None),
             new("object", @"Bin/Object"),
-            new("libs", @"Bin/Libraries")
+            new("libs", @"Bin/Libraries"),
+            new("debug_symbols", @"Bin/Symbols")
         ];
 
 
         // Getting path tiles from the dictionary and storing them into properties
         public static PathTile Debug { get; } = Paths[1];
         public static PathTile Release { get; } = Paths[2];
-        public static PathTile Object { get; } = Paths[3];
-        public static PathTile Libraries { get; } = Paths[4];
+        public static PathTile Preview { get; } = Paths[3];
+        public static PathTile Object { get; } = Paths[4];
+        public static PathTile Libraries { get; } = Paths[5];
+        public static PathTile Symbols { get; } = Paths[6];
 
         public static void Verify()
         {

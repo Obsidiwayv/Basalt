@@ -24,6 +24,7 @@ public class BasaltMacAppPackage
         string Output = Path.Join(
             Provider.GetDebugOrReleaseDir(),
             InputFolder,
+            "Contents",
             OutputFolder
         );
         Directory.CreateDirectory(Output);
@@ -32,8 +33,8 @@ public class BasaltMacAppPackage
 
     [Obsolete("Use GetAppFolderFromName")]
     public static string GetFolderName(BasicProvider Provider) => 
-        Path.Combine(Provider.GetDebugOrReleaseDir(), $"{Provider.ProjectName.Value}.app");
+        Path.Combine(Provider.GetDebugOrReleaseDir(), $"{Provider.ProjectName.Value}.app", "Contents");
 
     public static string GetAppFolderFromName(BasicProvider Provider, string Name) => 
-        Path.Combine(Provider.GetDebugOrReleaseDir(), $"{Name}.app");
+        Path.Combine(Provider.GetDebugOrReleaseDir(), $"{Name}.app", "Contents");
 }

@@ -16,6 +16,7 @@ namespace Basalt.BackendPipes.LLVM
         public void RunStaticLibraryTask();
         public void RunDynamicLibraryTask();
         public void HandleCachedLibrary(BasaltLibraryCache CachedLibrary);
+        public void HandleFinish();
     }
 
     public class SharedLLVMInstance : BasicProvider
@@ -74,9 +75,12 @@ namespace Basalt.BackendPipes.LLVM
 
         public List<string> GetCompilerDebugFlags()
         {
-            if (!DebugMode) return [];
             List<string> DebugFlags = [];
-            DebugFlags.Add("-g3");
+            if (DebugMode || PreviewMode)
+            {
+                DebugFlags.Add("-g3");
+            }
+            if (!DebugMode) return DebugFlags;
             DebugFlags.Add("-O0");
             DebugFlags.Add("-fsanitize=undefined");
             DebugFlags.Add("-fno-omit-frame-pointer");
@@ -91,7 +95,6 @@ namespace Basalt.BackendPipes.LLVM
             LavaArrayNode? Sources = (LavaArrayNode?)Lib.GetNode("Sources");
             LavaStringNode LibName = (LavaStringNode?)Lib.GetNode("Name")
                 ?? throw new BasaltException("Unknown Library!");
-            LavaStringNode? LibType = (LavaStringNode?)Lib.GetNode("Type");
 
             List<string> SecondaryLibFiles = [];
 
@@ -169,12 +172,13 @@ namespace Basalt.BackendPipes.LLVM
             return [];
         }
 
-        public List<string> CompileSourcesToObjects()
+        public List<string> CompileSourcesToObjects(EReleaseMode ReleaseMode = EReleaseMode.Shipping)
         {
             LavaArrayNode SourcesNode = (LavaArrayNode?)Project.GetNode("Sources")
                 ?? throw new BasaltException("Project cannot be compiled: Missing Sources Array");
 
             List<string> ObjectFilePaths = [];
+            List<string> ExtraFlags = [];
 
             string OutputPath = Path.Combine(
                 BasaltDirectoryTiles.Object.Value,
@@ -191,6 +195,10 @@ namespace Basalt.BackendPipes.LLVM
             {
                 SourcesNode.Value.AddRange(ThirdPartyLibraries.Sources);
             }
+            if (ReleaseMode == EReleaseMode.Shipping)
+            {
+                ExtraFlags.Add("-g");
+            }
             foreach (string SourceFile in SourcesNode.Value)
             {
                 string SourceNameWithObject = Path.Combine(
@@ -201,6 +209,7 @@ namespace Basalt.BackendPipes.LLVM
                 List<string> Includes = GetIncludes();
 
                 List<string> Args = [
+                    ..ExtraFlags,
                     "-c", SourceFile,
                     $"-o {SourceNameWithObject}",
                     ..Includes,
@@ -217,7 +226,7 @@ namespace Basalt.BackendPipes.LLVM
                 }
 
                 string CompilerPath = GetClangExecutableCommand(bIsCFile);
-                BasaltLogger.WriteLine($"{SourceFile} >>> {SourceNameWithObject}");
+                BasaltLogger.WriteLine($"%m{SourceFile}%c >>> %m{SourceNameWithObject}%c");
                 BasicCompilerBackend.ExecuteTool(CompilerPath, Args);
 
                 BasaltCompilationDatabase.PushEntry(
