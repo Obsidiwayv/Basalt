@@ -2,7 +2,7 @@
 
 #if __APPLE__
 #define EXPORT __attribute__((visibility("default")))
-#elif
+#elif _WIN32
 #define EXPORT __declspec(dllexport)
 #endif
 #define TESTING_INTEGER 0

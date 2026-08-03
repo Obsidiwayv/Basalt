@@ -1,25 +1,23 @@
 [
   {
-    "directory": "/Users/wayv/Documents/Basalt/TestProject",
+    "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
-      "clang++",
-      "-g",
+      "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
       "TestLibB/theb.cc",
-      "-o Bin/Object/TestLibB/theb.o",
+      "-o Bin/Object/TestLibB/theb.obj",
       "-ITestLibB/Inc",
       "-std=c++20"
     ],
     "file": "TestLibB/theb.cc"
   },
   {
-    "directory": "/Users/wayv/Documents/Basalt/TestProject",
+    "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
-      "clang++",
-      "-g",
+      "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
       "TestLib/thea.cc",
-      "-o Bin/Object/TestLibA/thea.o",
+      "-o Bin/Object/TestLibA/thea.obj",
       "-ITestLib/Inc",
       "-ITestLibB/Inc",
       "-std=c++20"
@@ -27,65 +25,64 @@
     "file": "TestLib/thea.cc"
   },
   {
-    "directory": "/Users/wayv/Documents/Basalt/TestProject",
+    "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
-      "clang++",
-      "-g",
+      "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
       "TestLibC/thec.cc",
-      "-o Bin/Object/TestLibC/thec.o",
+      "-o Bin/Object/TestLibC/thec.obj",
       "-ITestLibC/Inc",
       "-std=c++20"
     ],
     "file": "TestLibC/thec.cc"
   },
   {
-    "directory": "/Users/wayv/Documents/Basalt/TestProject",
+    "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
-      "clang++",
-      "-g",
+      "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
       "Source/Main.cc",
-      "-o Bin/Object/Testing/Main.o",
+      "-o Bin/Object/Testing/Main.obj",
       "-IHeaders",
       "-ILibs/Glad/include",
       "-ILibs/Glfw/include",
       "-ITestLib/Inc",
       "-ITestLibC/Inc",
+      "-DDEBUG=ENABLE",
       "-std=c++20"
     ],
     "file": "Source/Main.cc"
   },
   {
-    "directory": "/Users/wayv/Documents/Basalt/TestProject",
+    "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
-      "clang++",
-      "-g",
+      "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
       "Source/TestHeader.cc",
-      "-o Bin/Object/Testing/TestHeader.o",
+      "-o Bin/Object/Testing/TestHeader.obj",
       "-IHeaders",
       "-ILibs/Glad/include",
       "-ILibs/Glfw/include",
       "-ITestLib/Inc",
       "-ITestLibC/Inc",
+      "-DDEBUG=ENABLE",
       "-std=c++20"
     ],
     "file": "Source/TestHeader.cc"
   },
   {
-    "directory": "/Users/wayv/Documents/Basalt/TestProject",
+    "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
-      "clang",
-      "-g",
+      "C:/Program Files/LLVM/bin/clang.exe",
       "-c",
       "Libs/Glad/src/gl.c",
-      "-o Bin/Object/Testing/gl.o",
+      "-o Bin/Object/Testing/gl.obj",
       "-IHeaders",
       "-ILibs/Glad/include",
       "-ILibs/Glfw/include",
       "-ITestLib/Inc",
-      "-ITestLibC/Inc"
+      "-ITestLibC/Inc",
+      "-DDEBUG=ENABLE"
     ],
     "file": "Libs/Glad/src/gl.c"
   }

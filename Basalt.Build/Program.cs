@@ -25,6 +25,8 @@ public class BasaltBuildProgram
 
         List<BasaltProject> ProjectGraph = BasaltTopologicalSorting.BuildDepedencyGraph(ProjectParent);
 
+        List<string> ProjectNames = [];
+
         foreach (BasaltProject Project in ProjectGraph)
         {
             LavaFunctionNode BinaryMetaFunction = (LavaFunctionNode?)Project.GetNode("CreateBinary")

@@ -24,6 +24,8 @@ namespace Basalt.BackendPipes.LLVM
         public FUseCompiler CompilerMetadata { get; }
         public List<string> RequiredLibraryIncludes { get; } = [];
         public List<string> RequiredLibraryLinkFiles { get; } = [];
+        public List<string> BuildFlags { get; } = [];
+
         public BasaltThirdPartyLibraries ThirdPartyLibraries = new();
 
         public SharedLLVMInstance(BasaltProject Project,
@@ -73,7 +75,7 @@ namespace Basalt.BackendPipes.LLVM
                 UsingC ? "clang" : "clang++");
         }
 
-        public List<string> GetCompilerDebugFlags()
+        public static List<string> GetCompilerDebugFlags()
         {
             List<string> DebugFlags = [];
             if (DebugMode || PreviewMode)
@@ -208,13 +210,16 @@ namespace Basalt.BackendPipes.LLVM
 
                 List<string> Includes = GetIncludes();
 
+                LavaArrayNode? Flags = (LavaArrayNode?)Project.GetNode("Flags");
+                List<string> ProjectFlags = [];
+
                 List<string> Args = [
-                    ..ExtraFlags,
                     "-c", SourceFile,
                     $"-o {SourceNameWithObject}",
+                    ..ExtraFlags,
                     ..Includes,
                     ..ThirdPartyLibraries.Headers,
-                    ..RequiredLibraryIncludes, ..BasicCompilerBackend.GetOSFlags(Project.Nodes)];
+                    ..RequiredLibraryIncludes, ..BasicProvider.GetOSFlags(Project, "CompileFlags")];
 
                 bool bIsCFile = SourceFile.EndsWith(".c");
                 if (!bIsCFile)

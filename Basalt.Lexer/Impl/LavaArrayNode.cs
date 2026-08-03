@@ -10,6 +10,6 @@ namespace Basalt.LavaLang.Impl
     {
         public string Key { get => KeyName; }
         public List<string> Value { get => ValueWithType; }
-        public ENodeEntityType Type { get => EntityType;  }
+        public ENodeEntityType Type { get => EntityType; }
     }
 }

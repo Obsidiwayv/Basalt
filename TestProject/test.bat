@@ -1,1 +1,1 @@
-dotnet run --project ../Basalt.Build/Basalt.Build.csproj -debug
+dotnet run --project ../Basalt.Build/Basalt.Build.csproj -verbose -ld -debug

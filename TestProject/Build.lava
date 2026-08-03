@@ -1,3 +1,5 @@
+
+
 @name "Testing"
 @ThirdParty "Libs"
 @RCFile "test-resource.rc"
@@ -14,15 +16,20 @@ Sources {
   "Source/Main.cc"
   "Source/TestHeader.cc"
 }
+
 Includes {
   "Headers"
 }
+
 Assets {
   "TestAssets"
 }
-Win32Flags {
-  "-DDEBUG=ENABLE"
+
+CompileFlags {
+  "@windows://debug://-DDEBUG=ENABLE"
+  "@windows://-DDEBUG=DISABLE"
 }
+
 Using {
   "TestLib/Build.lava"
   "TestLibC/Build.lava"

@@ -17,7 +17,7 @@ namespace Basalt.BackendPipes.LLVM
 
         public void RunExecutableTask()
         {
-            List<string> DebugFlags = Shared.GetCompilerDebugFlags();
+            List<string> DebugFlags = SharedLLVMInstance.GetCompilerDebugFlags();
             List<string> Objects = Shared.CompileSourcesToObjects(Shared.ReleaseType);
             string MacPackageOutput = BasaltMacAppPackage
                 .GetOrCreatePackageFolder(Shared, "MacOS");
@@ -30,7 +30,7 @@ namespace Basalt.BackendPipes.LLVM
                 Shared.GetExecutableName());
 
             List<string> PackagingFlags = [];
-            if (Shared.ReleaseMode)
+            if (SharedLLVMInstance.ReleaseMode)
             {
                 PackagingFlags.Add("-g");
             }
@@ -49,7 +49,7 @@ namespace Basalt.BackendPipes.LLVM
                 ..Shared.ThirdPartyLibraries.LinkFiles,
                 string.Join(" ", Objects)]);
 
-            if (Shared.ReleaseMode)
+            if (SharedLLVMInstance.ReleaseMode && !Shared.Project.MacroIsPresent("DisableDSYM"))
             {
                 if (Shared.VersionNumber == null)
                     throw new BasaltException("@AppVersion is null");
@@ -116,7 +116,7 @@ namespace Basalt.BackendPipes.LLVM
             string DylibName = LibraryFile(Shared.ProjectName.Value);
 
             string BinaryName = Path.Join(
-                Shared.GetDebugOrReleaseDir(),
+                BasicProvider.GetDebugOrReleaseDir(),
                 LibraryFile(Shared.ProjectName.Value));
 
             BasaltGlobalFileCache.LibraryCache.Add(
@@ -130,7 +130,7 @@ namespace Basalt.BackendPipes.LLVM
                         "-dynamiclib",
                         ..ExtraFlags,
                         $"-install_name @rpath/{DylibName}",
-                        ..Shared.GetCompilerDebugFlags(),
+                        ..SharedLLVMInstance.GetCompilerDebugFlags(),
                         ..Shared.ThirdPartyLibraries.LinkFiles,
                         ..Shared.RequiredLibraryLinkFiles,
                         string.Join(" ", Objects)]);
@@ -138,7 +138,6 @@ namespace Basalt.BackendPipes.LLVM
             BasaltGlobalFileCache.PushFile(BinaryName);
         }
 
-        // This method is unused on MacOS as dylibs 
         public void HandleCachedLibrary(BasaltLibraryCache CachedLibrary)
         {
             Shared.RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
@@ -160,7 +159,7 @@ namespace Basalt.BackendPipes.LLVM
                 {
                     if (File.Exists(Asset))
                     {
-                        File.Copy(Asset, Path.Join(ResourcesDir, Asset));
+                        File.Copy(Asset, Path.Join(ResourcesDir, Asset), true);
                         continue;
                     }
                     Pipeline.CopyFiles(Asset, ResourcesDir);

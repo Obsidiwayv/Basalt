@@ -16,6 +16,13 @@ namespace Basalt.LavaLang
 
         public List<IPartialNode> Nodes { get; } = [];
 
+        public Dictionary<string, bool> AssemblyMacros = new()
+        {
+            { "IF_WINDOWS", OperatingSystem.IsWindows() },
+            { "IF_MACOS", OperatingSystem.IsMacOS() },
+            { "IF_LINUX", OperatingSystem.IsLinux() }
+        };
+
         public BasaltProject Project
         {
             get
@@ -36,6 +43,13 @@ namespace Basalt.LavaLang
                     Nodes.Add(new LavaStringNode(
                         /* Attribute Name */ SyntaxMap[Index + 1],
                         /* Attribute Value */ SyntaxMap[Index + 2], ENodeEntityType.Attribute));
+                }
+
+                // Macros
+                if (Word == "#" && SyntaxMap.Count - Index > 2)
+                {
+                    BasaltLogger.WriteLine($"%r{SyntaxMap[Index + 1]}%c");
+                    Nodes.Add(new LavaMacroNode(SyntaxMap[Index + 1]));
                 }
 
                 // Functions
