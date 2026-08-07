@@ -8,13 +8,14 @@ using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Basalt.BackendPipes.LLVM
 {
     public class WindowsLLVMInstance : ILLVMInstance
     {
-        private MSVCInstallation MSVCDirectory { get; }
+        private string MSVCDirectory { get; }
 
         private SharedLLVMInstance Shared { get; }
 
@@ -38,7 +39,7 @@ namespace Basalt.BackendPipes.LLVM
 
         public void RunExecutableTask()
         {
-            List<string> DebugFlags = SharedLLVMInstance.GetCompilerDebugFlags();
+            List<string> DebugFlags = Shared.GetCompilerDebugFlags();
             List<string> Objects = Shared.CompileSourcesToObjects(Shared.ReleaseType);
 
             string ExecutableName = Path.Join(Shared.OutputDirectory, Shared.GetExecutableName());
@@ -66,16 +67,15 @@ namespace Basalt.BackendPipes.LLVM
                 ..OSFlags,
                 ..Shared.RequiredLibraryLinkFiles,
                 ..Shared.ThirdPartyLibraries.LinkFiles,
-                ..BasicProvider.GetOSFlags(Shared.Project, "Flags"),
+                ..Shared.GetOSFlags(Shared.Project, "Flags"),
                 string.Join(" ", Objects)]);
 
-            CopyPDB();
             BasaltGlobalFileCache.PushFile(ExecutableName);
         }
 
         public void RunDynamicLibraryTask()
         {
-            List<string> DebugFlags = SharedLLVMInstance.GetCompilerDebugFlags();
+            List<string> DebugFlags = Shared.GetCompilerDebugFlags();
             List<string> Objects = Shared.CompileSourcesToObjects(Shared.ReleaseType);
             List<string> ExtraFlags = [];
 
@@ -100,10 +100,9 @@ namespace Basalt.BackendPipes.LLVM
                         ..ExtraFlags,
                         ..DebugFlags,
                         ..Shared.ThirdPartyLibraries.LinkFiles,
-                        ..BasicProvider.GetOSFlags(Shared.Project, "Flags"),
+                        ..Shared.GetOSFlags(Shared.Project, "Flags"),
                         string.Join(" ", Objects)]);
 
-            CopyPDB();
             BasaltGlobalFileCache.PushFile(BinaryName);
         }
 
@@ -117,15 +116,8 @@ namespace Basalt.BackendPipes.LLVM
 
             string LibraryOutputName = $"{Path.Join(BasaltDirectoryTiles.Libraries.Value, LibraryName)}-static.lib";
 
-            List<string> UnixFlags = [];
-            if (!OperatingSystem.IsWindows())
-            {
-                UnixFlags.Add(LibraryOutputName);
-            }
-
             BasicCompilerBackend.ExecuteTool(SharedLLVMInstance.GetLLVMExecutableFromBin("llvm-lib"), [
                 $"/OUT:{LibraryOutputName}",
-                ..UnixFlags,
                 ..Objects]);
             BasaltGlobalFileCache.LibraryCache.Add(
                 new(
@@ -143,12 +135,12 @@ namespace Basalt.BackendPipes.LLVM
 
         public void HandleFinish()
         {
+            // asset handling
             LavaArrayNode? AssetArrayNode = (LavaArrayNode?)
                 Shared.Project.GetNode("Assets");
 
             if (AssetArrayNode != null)
             {
-                BasaltAssetsPipeline Pipeline = new(true);
                 string ResourcesDir = BasicProvider.GetDebugOrReleaseDir();
 
                 foreach (string Asset in AssetArrayNode.Value)
@@ -158,9 +150,27 @@ namespace Basalt.BackendPipes.LLVM
                         File.Copy(Asset, Path.Join(ResourcesDir, Asset), true);
                         continue;
                     }
-                    Pipeline.CopyFiles(Asset, ResourcesDir);
+                    BasaltAssetsPipeline.CopyFiles(Asset, ResourcesDir);
                 }
             }
+
+            // Redist handling
+            string RedistDir = Path.Join(SharedLLVMInstance.GetDebugOrReleaseDir(), "_Redist");
+            string Redist = Directory.GetDirectories(
+                Path.Join(MSVCDirectory, "VC", "Redist", "MSVC"), "*", SearchOption.TopDirectoryOnly)[0];
+
+            Directory.CreateDirectory(RedistDir);
+
+            if (RuntimeInformation.OSArchitecture == Architecture.X64
+                || RuntimeInformation.OSArchitecture == Architecture.Arm64)
+            {
+                Redist = Path.Join(Redist, "vc_redist.x64.exe");
+            }
+            if (RuntimeInformation.OSArchitecture == Architecture.X86)
+            {
+                Redist = Path.Join(Redist, "vc_redist.x86.exe");
+            }
+            File.Copy(Redist, Path.Join(RedistDir, Path.GetFileName(Redist)), true);
         }
 
         public void CheckDebugSymbolsMacro(List<string> FlagsArray)
@@ -179,19 +189,6 @@ namespace Basalt.BackendPipes.LLVM
             if (SharedLLVMInstance.ReleaseMode && !DebugSymbolsDisabled)
             {
                 FlagsArray.Add("-g");
-            }
-        }
-
-        public void CopyPDB()
-        {
-            string PDBFile = Path.Join(Shared.OutputDirectory, $"{Shared.GetExecutableName(false)}.pdb");
-            if (File.Exists(PDBFile))
-            {
-                File.Copy(PDBFile, Path.Join("Bin", Path.GetFileName(PDBFile)), true);
-
-                string ID = BasaltBuildId.Generate(false);
-                File.Copy(PDBFile, Path.Join(
-                    BasaltDirectoryTiles.Symbols.Value, $"{Path.GetFileNameWithoutExtension(PDBFile)}-{ID}.pdb"));
             }
         }
     }

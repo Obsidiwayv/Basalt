@@ -41,7 +41,7 @@
     "arguments": [
       "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
-      "Source/Main.cc",
+      "Source\\Main.cc",
       "-o Bin/Object/Testing/Main.obj",
       "-IHeaders",
       "-ILibs/Glad/include",
@@ -51,14 +51,14 @@
       "-DDEBUG=ENABLE",
       "-std=c++20"
     ],
-    "file": "Source/Main.cc"
+    "file": "Source\\Main.cc"
   },
   {
     "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
     "arguments": [
       "C:/Program Files/LLVM/bin/clang++.exe",
       "-c",
-      "Source/TestHeader.cc",
+      "Source\\TestHeader.cc",
       "-o Bin/Object/Testing/TestHeader.obj",
       "-IHeaders",
       "-ILibs/Glad/include",
@@ -68,7 +68,7 @@
       "-DDEBUG=ENABLE",
       "-std=c++20"
     ],
-    "file": "Source/TestHeader.cc"
+    "file": "Source\\TestHeader.cc"
   },
   {
     "directory": "C:\\Users\\Wayv\\source\\repos\\Basalt\\TestProject",
@@ -82,7 +82,8 @@
       "-ILibs/Glfw/include",
       "-ITestLib/Inc",
       "-ITestLibC/Inc",
-      "-DDEBUG=ENABLE"
+      "-DDEBUG=ENABLE",
+      "-std=c23"
     ],
     "file": "Libs/Glad/src/gl.c"
   }

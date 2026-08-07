@@ -11,6 +11,7 @@ namespace Basalt.BackendPipes
         public static List<CompiledFileWithHash> Compiled { get; } = [];
         public static List<CompiledFileWithHash> CachedCompiledFiles { get; } = [];
         public static List<BasaltLibraryCache> LibraryCache { get; } = [];
+        public static List<string> ProjectNames { get; } = [];
 
         public static bool DebugMode { get; set; } = false;
 

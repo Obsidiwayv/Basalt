@@ -59,10 +59,10 @@ namespace Basalt.LavaLang.Impl
             return new("LLVM", LanguageVersion);
         }
 
-        public static bool UseC(LavaFunctionNode _, List<string> __)
+        public static int CLangVersion(LavaFunctionNode Node, List<string> Params)
         {
-            BasaltLogger.WriteLine("Compiler language set to C");
-            return true; // idk
+            return CompilerFunctions.VerifyLanguageVerson(
+                 Params, Node, CompilerLanguage.C);
         }
     }
 }

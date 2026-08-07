@@ -17,7 +17,7 @@ namespace Basalt.BackendPipes.LLVM
 
         public void RunExecutableTask()
         {
-            List<string> DebugFlags = SharedLLVMInstance.GetCompilerDebugFlags();
+            List<string> DebugFlags = Shared.GetCompilerDebugFlags();
             List<string> Objects = Shared.CompileSourcesToObjects(Shared.ReleaseType);
             string MacPackageOutput = BasaltMacAppPackage
                 .GetOrCreatePackageFolder(Shared, "MacOS");
@@ -128,9 +128,9 @@ namespace Basalt.BackendPipes.LLVM
             BasicCompilerBackend.ExecuteTool(SharedLLVMInstance.GetClangExecutableCommand(false),
                         [$"-o {BinaryName}",
                         "-dynamiclib",
-                        ..ExtraFlags,
                         $"-install_name @rpath/{DylibName}",
-                        ..SharedLLVMInstance.GetCompilerDebugFlags(),
+                        ..ExtraFlags,
+                        ..Shared.GetCompilerDebugFlags(),
                         ..Shared.ThirdPartyLibraries.LinkFiles,
                         ..Shared.RequiredLibraryLinkFiles,
                         string.Join(" ", Objects)]);
@@ -145,7 +145,6 @@ namespace Basalt.BackendPipes.LLVM
 
         public void HandleFinish()
         {
-
             LavaArrayNode? AssetArrayNode = (LavaArrayNode?)
                 Shared.Project.GetNode("Assets");
 
@@ -154,7 +153,6 @@ namespace Basalt.BackendPipes.LLVM
                 string ResourcesDir = BasaltMacAppPackage
                     .GetOrCreatePackageFolder(Shared, "Resources");
 
-                BasaltAssetsPipeline Pipeline = new(true);
                 foreach (string Asset in AssetArrayNode.Value)
                 {
                     if (File.Exists(Asset))
@@ -162,7 +160,7 @@ namespace Basalt.BackendPipes.LLVM
                         File.Copy(Asset, Path.Join(ResourcesDir, Asset), true);
                         continue;
                     }
-                    Pipeline.CopyFiles(Asset, ResourcesDir);
+                    BasaltAssetsPipeline.CopyFiles(Asset, ResourcesDir);
                 }
             }
 

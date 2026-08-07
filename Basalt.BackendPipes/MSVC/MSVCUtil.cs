@@ -10,7 +10,7 @@ namespace Basalt.BackendPipes.MSVC
     {
         public static string BaseVSDir { get; } = @"C:/Program Files/Microsoft Visual Studio";
 
-        public static MSVCInstallation GetVersionedDirectory(string? ForcedVersion = null)
+        public static string GetVersionedDirectory(string? ForcedVersion = null)
         {
             ;
             string[] VersionedDirectories = Directory.GetDirectories(BaseVSDir, "*", SearchOption.TopDirectoryOnly);
@@ -38,10 +38,10 @@ namespace Basalt.BackendPipes.MSVC
         }
 
         // Its private due to GetVersionedDirectory using this method instead
-        private static MSVCInstallation GetEdition(string Dir, string VersionName)
+        private static string GetEdition(string Dir, string VersionName)
         {
             string[] EditionDirs = Directory.GetDirectories(Dir, "*", SearchOption.TopDirectoryOnly);
-            return new(EditionDirs[0], VersionName);
+            return EditionDirs[0];
         }
     }
 }

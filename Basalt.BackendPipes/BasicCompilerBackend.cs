@@ -83,6 +83,8 @@ namespace Basalt.BackendPipes
             ProjectName = (LavaStringNode?)Project.GetNode("name")
                 ?? throw new BasaltException("Project is missing a name attribute!");
 
+            BasaltGlobalFileCache.ProjectNames.Add(ProjectName.Value);
+
             VersionNumber = (LavaStringNode?)Project.GetNode("AppVersion");
 
             this.UsingDatabaseFile = UsingDatabaseFile;
@@ -118,6 +120,8 @@ namespace Basalt.BackendPipes
                             break;
                         case "-verbose":
                             VerboseMode = true;
+                            break;
+                        default:
                             break;
                     }
                 }
@@ -226,7 +230,7 @@ namespace Basalt.BackendPipes
                         File.Copy(Path, $"{GetDebugOrReleaseDir()}/{Path}");
                         continue;
                     }
-                    Pipeline.CopyFiles(Path, GetDebugOrReleaseDir());
+                    BasaltAssetsPipeline.CopyFiles(Path, GetDebugOrReleaseDir());
                 }
             }
             if (DepthLogging) BasaltLogger.WriteLine($"Finished Layer {BasaltGlobalStats.Depth}");
@@ -234,7 +238,13 @@ namespace Basalt.BackendPipes
             BasaltGlobalFileCache.WriteIntoCache();
         }
 
-        public static List<string> GetOSFlags(BasaltProject Project, string FlagNodeName)
+        public string ParseStringVariables(string Input)
+        {
+            return Input
+                .Replace("#projroot", Path.GetFullPath(Project.FileSource.Name).TrimEnd(Path.DirectorySeparatorChar));
+        }
+
+        public List<string> GetOSFlags(BasaltProject Project, string FlagNodeName)
         {
             LavaArrayNode? FlagsNode = (LavaArrayNode?)Project.GetNode(FlagNodeName);
             if (FlagsNode != null)
@@ -274,9 +284,11 @@ namespace Basalt.BackendPipes
 
                     if (OperatingSystem.IsWindows() && FlagString[0] == "@windows")
                         Flags.Add(FlagString[FlagOffset]);
-                    if (OperatingSystem.IsLinux() && FlagString[0] == "@linux")
+                    else if (OperatingSystem.IsLinux() && FlagString[0] == "@linux")
                         Flags.Add(FlagString[FlagOffset]);
-                    if (OperatingSystem.IsMacOS() && FlagString[0] == "@macos")
+                    else if (OperatingSystem.IsMacOS() && FlagString[0] == "@macos")
+                        Flags.Add(FlagString[FlagOffset]);
+                    else
                         Flags.Add(FlagString[FlagOffset]);
                 }
                 return Flags;
@@ -304,7 +316,7 @@ namespace Basalt.BackendPipes
 
     public class BasicCompilerBackend
     {
-        private static readonly JsonSerializerOptions JsonOutputOptions = new() 
+        public static readonly JsonSerializerOptions JsonOutputOptions = new() 
         { 
             WriteIndented = true ,
             

@@ -230,7 +230,7 @@ namespace Basalt.BackendPipes.LLVM
                     $"-o {SourceNameWithObject}",
                     ..Includes,
                     ..ThirdPartyLibraries.Headers,
-                    ..RequiredLibraryIncludes, ..BasicProvider.GetOSFlags(Project, "CompileFlags")];
+                    ..RequiredLibraryIncludes, ..GetOSFlags(Project, "CompileFlags")];
 
                 bool bIsCFile = SourceFile.EndsWith(".c");
                 if (!bIsCFile)
