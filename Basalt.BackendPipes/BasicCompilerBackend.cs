@@ -68,6 +68,8 @@ namespace Basalt.BackendPipes
 
         public string OutputDirectory { get; set; }
 
+        public Guid BuildId = Guid.CreateVersion7();
+
         public BasicProvider(
             BasaltProject Project,
             string CompilerName,
@@ -175,6 +177,13 @@ namespace Basalt.BackendPipes
             }
         }
 
+        public string GetProjectDepotDir()
+        {
+            string Depot = Path.Join(BasaltDirectoryTiles.Depots.Value, ProjectName.Value);
+            Directory.CreateDirectory(Depot);
+            return Depot;
+        }
+
         public string GetDebugOrReleaseDir()
         {
             string DebugDir = BasaltDirectoryTiles.Debug.Value;
@@ -255,8 +264,7 @@ namespace Basalt.BackendPipes
     {
         private static readonly JsonSerializerOptions JsonOutputOptions = new() 
         { 
-            WriteIndented = true ,
-            
+            WriteIndented = true
         };
         public static void ExecuteTool(string ToolUrl, List<string> Flags)
         {

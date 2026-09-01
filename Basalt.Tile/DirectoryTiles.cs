@@ -14,7 +14,8 @@ namespace Basalt.Tile
             new("program_bin_staging", @"Bin/Preview", CheckPriority.None),
             new("object", @"Bin/Object"),
             new("libs", @"Bin/Libraries"),
-            new("debug_symbols", @"Bin/Symbols")
+            new("debug_symbols", @"Bin/Symbols"),
+            new("depots", @"Bin/Depots")
         ];
 
 
@@ -25,6 +26,7 @@ namespace Basalt.Tile
         public static PathTile Object { get; } = Paths[4];
         public static PathTile Libraries { get; } = Paths[5];
         public static PathTile Symbols { get; } = Paths[6];
+        public static PathTile Depots { get; } = Paths[7];
 
         public static void Verify()
         {

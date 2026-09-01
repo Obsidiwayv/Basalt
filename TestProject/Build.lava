@@ -20,8 +20,13 @@ Includes {
 Assets {
   "TestAssets"
 }
-Win32Flags {
-  "-DDEBUG=ENABLE"
+Flags {
+  rules[macOS] {
+    "-DMODE=MAC_SHIPPING"
+  }
+  rules::debug[macOS] {
+    "-DMODE=MAC_DEBUG"
+  }
 }
 Using {
   "TestLib/Build.lava"

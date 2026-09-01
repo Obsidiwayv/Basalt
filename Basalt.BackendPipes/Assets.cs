@@ -1,10 +1,4 @@
-﻿using Basalt.Tile;
-using System;
-using System.Collections.Generic;
-using System.Runtime.Intrinsics.Arm;
-using System.Text;
-
-namespace Basalt.BackendPipes
+﻿namespace Basalt.BackendPipes
 {
     public class BasaltAssetsPipeline(
         bool TrackFiles = false)
