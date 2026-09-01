@@ -7,6 +7,7 @@ using Basalt.LavaLang.Entities;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
 using Basalt.Tile;
+using System.Text.Json;
 
 public class BasaltBuildProgram
 {
@@ -24,6 +25,8 @@ public class BasaltBuildProgram
             ?? throw new BasaltException("Project parent name is missing!");
 
         List<BasaltProject> ProjectGraph = BasaltTopologicalSorting.BuildDepedencyGraph(ProjectParent);
+
+        List<string> ProjectNames = [];
 
         foreach (BasaltProject Project in ProjectGraph)
         {
@@ -45,6 +48,18 @@ public class BasaltBuildProgram
 
             Provider.Finish(Project, ParentProjectName.Value);
         }
+
+        object BasaltBuildMetadata = new
+        {
+            parent_project = ParentProjectName.Value,
+            modules = BasaltGlobalFileCache.ProjectNames,
+            build_time = DateTimeOffset.UtcNow.ToString("R"),
+            build_platform = BasicCompilerBackend.GetOSEnum().ToString(),
+            build_id = BasaltBuildId.Generate(true),
+        };
+
+        File.WriteAllText(Path.Join(BasicProvider.GetDebugOrReleaseDir(), "basalt.buildinfo.json"), 
+            JsonSerializer.Serialize(BasaltBuildMetadata, BasicCompilerBackend.JsonOutputOptions));
 
         BasaltCompilationDatabase.WriteFile();
     }

@@ -5,36 +5,51 @@
     {
         public List<string> CopiedFiles = [];
 
-        public void CopyFiles(string Input, string Output)
+        public static void CopyFiles(string Input, string Output)
         {
-            string[] Dirs = Directory.GetDirectories(Input);
-            Directory.CreateDirectory(Path.Combine(Output, Input));
-            EnumerateFiles(Input, Output, true);
-
-            foreach (string DP in Dirs)
+            string Filter = "*";
+            if (Input.Contains(','))
             {
-                string OutputDir = Path.Combine(Output, DP);
-                Directory.CreateDirectory(OutputDir);
-                EnumerateFiles(DP, OutputDir, false);
+                string[] SplitDirPath = Input.Split(",");
+                if (SplitDirPath.Length == 1)
+                    throw new BasaltException($"Expecting file filter at: %r{SplitDirPath[0]},%c");
+
+                Filter = SplitDirPath[1];
+                Input = SplitDirPath[0];
+            }
+            CopyDirectory(Input, Output, Filter);
+        }
+
+        private static void CopyDirectory(string Source, string Target, string Filter)
+        {
+            string BaseDir = Path.GetFileName(Path.GetFullPath(Source)).TrimEnd(Path.DirectorySeparatorChar);
+            string TargetBaseDir = Path.Join(Target, BaseDir);
+
+            Directory.CreateDirectory(TargetBaseDir);
+
+            foreach (string FilePath in Directory.GetFiles(Source, Filter))
+            {
+                string Name = Path.GetFileName(FilePath);
+                string Destination = Path.Join(TargetBaseDir, Name);
+                File.Copy(FilePath, Destination, true);
+            }
+
+            foreach (string SubDirectory in Directory.GetDirectories(Source))
+            {
+                string Name = Path.GetFileName(SubDirectory);
+                string Destination = Path.Join(TargetBaseDir, Name);
+                CopyDirectory(SubDirectory, Destination, Filter);
             }
         }
 
-        public void EnumerateFiles(
-            string DirPath, string OutPath, bool TopLevelOnly = false)
+        [Obsolete("Unused")]
+        public void Enumerate(
+            string DirPath, string OutPath, string Filter)
         {
-            foreach (string InputFileName in Directory.EnumerateFiles(DirPath, "*", SearchOption.TopDirectoryOnly))
+            foreach (string InputFileName in Directory.EnumerateFiles(DirPath, Filter, SearchOption.AllDirectories))
             {
-                string FileName = Path.GetFileName(InputFileName);
-                string SecondFilepath = TopLevelOnly ? DirPath : "";
-
-                string FilePath = Path.Combine(
-                    OutPath, SecondFilepath, FileName);
-
-                File.Copy(InputFileName, FilePath, true);
-                if (TrackFiles)
-                {
-                    CopiedFiles.Add(Path.Combine(SecondFilepath, FileName));
-                }
+                Console.WriteLine(OutPath);
+                File.Copy(InputFileName, InputFileName.Replace(DirPath, OutPath), true);
             }
         }
     }

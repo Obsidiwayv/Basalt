@@ -30,7 +30,7 @@ namespace Basalt.BackendPipes.LLVM
                 Shared.GetExecutableName());
 
             List<string> PackagingFlags = [];
-            if (Shared.ReleaseMode)
+            if (SharedLLVMInstance.ReleaseMode)
             {
                 PackagingFlags.Add("-g");
             }
@@ -49,7 +49,7 @@ namespace Basalt.BackendPipes.LLVM
                 ..Shared.ThirdPartyLibraries.LinkFiles,
                 string.Join(" ", Objects)]);
 
-            if (Shared.ReleaseMode)
+            if (SharedLLVMInstance.ReleaseMode && !Shared.Project.MacroIsPresent("DisableDSYM"))
             {
                 if (Shared.VersionNumber == null)
                     throw new BasaltException("@AppVersion is null");
@@ -116,7 +116,7 @@ namespace Basalt.BackendPipes.LLVM
             string DylibName = LibraryFile(Shared.ProjectName.Value);
 
             string BinaryName = Path.Join(
-                Shared.GetDebugOrReleaseDir(),
+                BasicProvider.GetDebugOrReleaseDir(),
                 LibraryFile(Shared.ProjectName.Value));
 
             BasaltGlobalFileCache.LibraryCache.Add(
@@ -128,8 +128,8 @@ namespace Basalt.BackendPipes.LLVM
             BasicCompilerBackend.ExecuteTool(SharedLLVMInstance.GetClangExecutableCommand(false),
                         [$"-o {BinaryName}",
                         "-dynamiclib",
-                        ..ExtraFlags,
                         $"-install_name @rpath/{DylibName}",
+                        ..ExtraFlags,
                         ..Shared.GetCompilerDebugFlags(),
                         ..Shared.ThirdPartyLibraries.LinkFiles,
                         ..Shared.RequiredLibraryLinkFiles,
@@ -138,7 +138,6 @@ namespace Basalt.BackendPipes.LLVM
             BasaltGlobalFileCache.PushFile(BinaryName);
         }
 
-        // This method is unused on MacOS as dylibs 
         public void HandleCachedLibrary(BasaltLibraryCache CachedLibrary)
         {
             Shared.RequiredLibraryLinkFiles.Add(CachedLibrary.OutputFile);
@@ -146,7 +145,6 @@ namespace Basalt.BackendPipes.LLVM
 
         public void HandleFinish()
         {
-
             LavaArrayNode? AssetArrayNode = (LavaArrayNode?)
                 Shared.Project.GetNode("Assets");
 
@@ -155,15 +153,14 @@ namespace Basalt.BackendPipes.LLVM
                 string ResourcesDir = BasaltMacAppPackage
                     .GetOrCreatePackageFolder(Shared, "Resources");
 
-                BasaltAssetsPipeline Pipeline = new(true);
                 foreach (string Asset in AssetArrayNode.Value)
                 {
                     if (File.Exists(Asset))
                     {
-                        File.Copy(Asset, Path.Join(ResourcesDir, Asset));
+                        File.Copy(Asset, Path.Join(ResourcesDir, Asset), true);
                         continue;
                     }
-                    Pipeline.CopyFiles(Asset, ResourcesDir);
+                    BasaltAssetsPipeline.CopyFiles(Asset, ResourcesDir);
                 }
             }
 

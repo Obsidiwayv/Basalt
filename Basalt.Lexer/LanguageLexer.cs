@@ -96,8 +96,9 @@ namespace Basalt.LavaLang
                 }
 
                 // Make sure that all symbols are included
-                if (char.IsPunctuation(C))
+                if (C != '_' && char.IsPunctuation(C))
                 {
+                    // let this specific character get appended into the stringbuilder
                     SyntaxMap.Add(C.ToString());
                     continue;
                 }

@@ -22,6 +22,7 @@ namespace Basalt.BackendPipes.LLVM
             Instance = BasicCompilerBackend.GetOSEnum() switch
             {
                 OSInformation.MacOS => new MacLLVMInstance(SharedInstance),
+                OSInformation.Windows => new WindowsLLVMInstance(SharedInstance),
                 _ => throw new BasaltException("Compiler does not support your operating system"),
             };
 
@@ -79,7 +80,7 @@ namespace Basalt.BackendPipes.LLVM
                 && Directory.Exists(AppFolderName))
             {
                 foreach (string DylibFile in Directory.EnumerateFiles(
-                    SharedInstance.GetDebugOrReleaseDir(), "*.dylib", SearchOption.TopDirectoryOnly))
+                    BasicProvider.GetDebugOrReleaseDir(), "*.dylib", SearchOption.TopDirectoryOnly))
                 {
                     File.Move(
                         DylibFile,
@@ -98,7 +99,7 @@ namespace Basalt.BackendPipes.LLVM
                 if (File.Exists(FilePath)) File.Delete(FilePath);
 
                 ZipFile.CreateFromDirectory(
-                    SharedInstance.GetDebugOrReleaseDir(),
+                    BasicProvider.GetDebugOrReleaseDir(),
                     FilePath,
                     CompressionLevel.Optimal, false
                 );

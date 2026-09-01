@@ -11,13 +11,18 @@ namespace Basalt.BackendPipes
         public static List<CompiledFileWithHash> Compiled { get; } = [];
         public static List<CompiledFileWithHash> CachedCompiledFiles { get; } = [];
         public static List<BasaltLibraryCache> LibraryCache { get; } = [];
+        public static List<string> ProjectNames { get; } = [];
 
         public static bool DebugMode { get; set; } = false;
+
         public static string CacheFile
         {
             get
             {
-                return Path.Combine("Bin", DebugMode ? ".hashes_debug" : ".hashes");
+                string HashFile = ".hashes";
+                if (BasicProvider.DebugMode) HashFile = ".hashes_debug";
+                if (BasicProvider.PreviewMode) HashFile = ".hashes_preview";
+                return Path.Combine("Bin", HashFile);
             }
         }
 

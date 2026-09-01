@@ -8,6 +8,7 @@ namespace Basalt.LavaLang
     {
         Attribute,
         Array,
-        Function
+        Function,
+        MacroToggle
     }
 }

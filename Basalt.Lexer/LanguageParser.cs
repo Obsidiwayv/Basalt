@@ -38,6 +38,12 @@ namespace Basalt.LavaLang
                         /* Attribute Value */ SyntaxMap[Index + 2], ENodeEntityType.Attribute));
                 }
 
+                // Macros
+                if (Word == "#" && SyntaxMap.Count - Index > 2)
+                {
+                    Nodes.Add(new LavaMacroNode(SyntaxMap[Index + 1]));
+                }
+
                 // Functions
                 if (SyntaxMap.Count - Index > 1 && SyntaxMap[Index + 1] == "(")
                 {

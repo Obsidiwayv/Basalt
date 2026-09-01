@@ -1,3 +1,5 @@
+
+
 @name "Testing"
 @ThirdParty "Libs"
 @RCFile "test-resource.rc"
@@ -11,14 +13,16 @@ UseClang()
 CreateBinary(executable)
 
 Sources {
-  "Source/Main.cc"
-  "Source/TestHeader.cc"
+  "Source"
 }
+
 Includes {
   "Headers"
 }
+
 Assets {
   "TestAssets"
+  "TestAssets2,*.txt"
 }
 Flags {
   rules[macOS] {
@@ -28,6 +32,7 @@ Flags {
     "-DMODE=MAC_DEBUG"
   }
 }
+
 Using {
   "TestLib/Build.lava"
   "TestLibC/Build.lava"

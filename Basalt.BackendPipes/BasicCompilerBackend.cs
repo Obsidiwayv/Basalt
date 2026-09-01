@@ -1,4 +1,4 @@
-﻿using Basalt.LavaLang;
+using Basalt.LavaLang;
 using Basalt.LavaLang.Entities;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Xml;
+using System.Xml.Linq;
 
 namespace Basalt.BackendPipes
 {
@@ -22,9 +23,9 @@ namespace Basalt.BackendPipes
 
     public enum EReleaseMode
     {
-        Shipping,
-        Preview,
-        Debug
+        Shipping = 0x01,
+        Preview = 0x02,
+        Debug = 0x03
     }
 
     public enum OSInformation
@@ -41,15 +42,15 @@ namespace Basalt.BackendPipes
         public EBinaryType? CompilerMode { get; set; }
 
         // FLAGS
-        public bool DebugMode { get; set; } = false;
+        public static bool DebugMode { get; set; } = false;
 
-        public bool PreviewMode { get; set; } = false;
+        public static bool PreviewMode { get; set; } = false;
 
         public bool DepthLogging { get; set; } = false;
 
         public bool PackageIntoZip { get; set; } = false;
 
-        public bool ReleaseMode { get; } = true;
+        public static bool ReleaseMode { get; set; } = true;
 
         public static bool VerboseMode { get; set; } = false;
 
@@ -83,6 +84,8 @@ namespace Basalt.BackendPipes
 
             ProjectName = (LavaStringNode?)Project.GetNode("name")
                 ?? throw new BasaltException("Project is missing a name attribute!");
+
+            BasaltGlobalFileCache.ProjectNames.Add(ProjectName.Value);
 
             VersionNumber = (LavaStringNode?)Project.GetNode("AppVersion");
 
@@ -120,6 +123,8 @@ namespace Basalt.BackendPipes
                         case "-verbose":
                             VerboseMode = true;
                             break;
+                        default:
+                            break;
                     }
                 }
                 HasFlags = true;
@@ -146,7 +151,7 @@ namespace Basalt.BackendPipes
             _ => throw new BasaltException("Unknown Operating system library type")
         };
 
-        public string GetExecutableName(bool WithExt = false)
+        public string GetExecutableName(bool WithExt = true)
         {
             string ArchName = GetOSArch();
             string OSName = BasicCompilerBackend.GetOSName();
@@ -234,12 +239,70 @@ namespace Basalt.BackendPipes
                         File.Copy(Path, $"{GetDebugOrReleaseDir()}/{Path}");
                         continue;
                     }
-                    Pipeline.CopyFiles(Path, GetDebugOrReleaseDir());
+                    BasaltAssetsPipeline.CopyFiles(Path, GetDebugOrReleaseDir());
                 }
             }
             if (DepthLogging) BasaltLogger.WriteLine($"Finished Layer {BasaltGlobalStats.Depth}");
 
             BasaltGlobalFileCache.WriteIntoCache();
+        }
+
+        public string ParseStringVariables(string Input)
+        {
+            return Input
+                .Replace("#projroot", Path.GetFullPath(Project.FileSource.Name).TrimEnd(Path.DirectorySeparatorChar));
+        }
+
+        public List<string> GetOSFlags(BasaltProject Project, string FlagNodeName)
+        {
+            LavaArrayNode? FlagsNode = (LavaArrayNode?)Project.GetNode(FlagNodeName);
+            if (FlagsNode != null)
+            {
+                List<string> Flags = [];
+
+                foreach (string F in FlagsNode.Value)
+                {
+                    // Its a global flag
+                    if (!F.Contains("://") && !F.StartsWith('@'))
+                    {
+                        Flags.Add(F);
+                        continue;
+                    }
+
+                    string[] FlagString = F.Split("://");
+
+                    int FlagOffset = 1;
+
+                    EReleaseMode FlagBuildType = EReleaseMode.Shipping;
+
+                    switch (FlagString[1])
+                    {
+                        case "debug":
+                            FlagBuildType = EReleaseMode.Debug;
+                            FlagOffset++;
+                            break;
+                        case "preview":
+                            FlagBuildType = EReleaseMode.Preview;
+                            FlagOffset++;
+                            break;
+                    }
+
+                    if (FlagBuildType == EReleaseMode.Shipping && !ReleaseMode) continue;
+                    if (FlagBuildType == EReleaseMode.Debug && !DebugMode) continue;
+                    if (FlagBuildType == EReleaseMode.Preview && !PreviewMode) continue;
+
+                    if (OperatingSystem.IsWindows() && FlagString[0] == "@windows")
+                        Flags.Add(FlagString[FlagOffset]);
+                    else if (OperatingSystem.IsLinux() && FlagString[0] == "@linux")
+                        Flags.Add(FlagString[FlagOffset]);
+                    else if (OperatingSystem.IsMacOS() && FlagString[0] == "@macos")
+                        Flags.Add(FlagString[FlagOffset]);
+                    else
+                        Flags.Add(FlagString[FlagOffset]);
+                }
+                return Flags;
+            }
+            return [];
         }
 
         /**
@@ -262,10 +325,11 @@ namespace Basalt.BackendPipes
 
     public class BasicCompilerBackend
     {
-        private static readonly JsonSerializerOptions JsonOutputOptions = new() 
+        public static readonly JsonSerializerOptions JsonOutputOptions = new() 
         { 
             WriteIndented = true
         };
+
         public static void ExecuteTool(string ToolUrl, List<string> Flags)
         {
             try
@@ -318,19 +382,34 @@ namespace Basalt.BackendPipes
                 _ => throw new BasaltException("%rUnknown Operating system%c")
             };
         }
+    }
+    public class BasaltBuildId
+    {
+        private static int SHORT_ID_LENGTH { get; } = 6;
+        // the longer version of the id, 6 x 2 which will be 12
+        private static int LONG_ID_LENGTH { get; } = SHORT_ID_LENGTH * 2;
 
-        public static List<string> GetOSFlags(List<IPartialNode> Nodes)
+        public static string Generate(bool UseLong)
         {
-            foreach (IPartialNode Node in Nodes.Where(NF => NF.Type == ENodeEntityType.Array))
+            // Generate a random seed based on the GUID v7 format
+            Random Rand = new(Guid.CreateVersion7().GetHashCode());
+            Random OneOrTwo = new();
+
+            int ID_LENGTH = UseLong ? LONG_ID_LENGTH : SHORT_ID_LENGTH;
+            string Characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
+
+            StringBuilder ID = new();
+            for (int I = 0; I < ID_LENGTH; I++)
             {
-                if (OperatingSystem.IsWindows() && Node.Key == "Win32Flags")
-                    return ((LavaArrayNode)Node).Value;
-                if (OperatingSystem.IsLinux() && Node.Key == "LinuxFlags")
-                    return ((LavaArrayNode)Node).Value;
-                if (OperatingSystem.IsMacOS() && Node.Key == "DarwinFlags")
-                    return ((LavaArrayNode)Node).Value;
+                char UpperOrLower = Characters[Rand.Next(Characters.Length)];
+                if (OneOrTwo.Next(0, 2) == 1 && char.IsLetter(UpperOrLower))
+                {
+                    UpperOrLower = char.ToLower(UpperOrLower);
+                }
+                ID.Append(UpperOrLower);
             }
-            return [];
+
+            return ID.ToString();
         }
     }
 }

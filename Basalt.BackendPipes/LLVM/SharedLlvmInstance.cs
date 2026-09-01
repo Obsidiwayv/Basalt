@@ -5,6 +5,7 @@ using Basalt.LavaLang.Impl;
 using Basalt.Tile;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace Basalt.BackendPipes.LLVM
@@ -24,6 +25,8 @@ namespace Basalt.BackendPipes.LLVM
         public FUseCompiler CompilerMetadata { get; }
         public List<string> RequiredLibraryIncludes { get; } = [];
         public List<string> RequiredLibraryLinkFiles { get; } = [];
+        public List<string> BuildFlags { get; } = [];
+
         public BasaltThirdPartyLibraries ThirdPartyLibraries = new();
 
         public SharedLLVMInstance(BasaltProject Project,
@@ -51,9 +54,6 @@ namespace Basalt.BackendPipes.LLVM
             }
 
             BasaltLogger.WriteLine($"Starting Compilation of %m{ProjectName.Value}%c...");
-
-            LavaFunctionNode? LanguageUseC = (LavaFunctionNode?)Project.GetNode("UseC");
-            LanguageUseC?.Invoke<bool>();
         }
 
         public static string GetLLVMExecutableFromBin(string ExecutableName)
@@ -76,7 +76,7 @@ namespace Basalt.BackendPipes.LLVM
         public List<string> GetCompilerDebugFlags()
         {
             List<string> DebugFlags = [];
-            if (DebugMode || PreviewMode)
+            if ((DebugMode || PreviewMode) && !Project.MacroIsPresent("DisableDSYM"))
             {
                 DebugFlags.Add("-g3");
             }
@@ -195,47 +195,74 @@ namespace Basalt.BackendPipes.LLVM
             {
                 SourcesNode.Value.AddRange(ThirdPartyLibraries.Sources);
             }
-            if (ReleaseMode == EReleaseMode.Shipping)
+            if (ReleaseMode == EReleaseMode.Shipping && !Project.MacroIsPresent("DisableDSYM"))
             {
                 ExtraFlags.Add("-g");
             }
             foreach (string SourceFile in SourcesNode.Value)
             {
-                string SourceNameWithObject = Path.Combine(
-                    OutputPath,
-                    $"{Path.GetFileNameWithoutExtension(SourceFile)}.{(OperatingSystem.IsWindows() ? "obj" : "o")}")
-                    .Replace("\\", "/");
-
-                List<string> Includes = GetIncludes();
-
-                List<string> Args = [
-                    ..ExtraFlags,
-                    "-c", SourceFile,
-                    $"-o {SourceNameWithObject}",
-                    ..Includes,
-                    ..ThirdPartyLibraries.Headers,
-                    ..RequiredLibraryIncludes, ..BasicCompilerBackend.GetOSFlags(Project.Nodes)];
-
-                bool bIsCFile = SourceFile.EndsWith(".c");
-                if (!bIsCFile)
+                // Its a directory
+                if (Directory.Exists(SourceFile))
                 {
-                    BasaltDefaults.CPPVersions.TryGetValue(CompilerMetadata.LanguageVersion, out string? Version);
-                    // If the version doesnt exist default to the build tools default 
-                    Version ??= $"c++{BasaltDefaults.CPP}";
-                    Args.Add($"-std={Version}");
+                    foreach (string SubSourceFile in Directory.EnumerateFiles(
+                        ParseStringVariables(SourceFile), "*", SearchOption.AllDirectories))
+                    {
+                        CompileSource(SubSourceFile, ExtraFlags, OutputPath, ObjectFilePaths);
+                    }
+                    continue;
                 }
+                CompileSource(SourceFile, ExtraFlags, OutputPath, ObjectFilePaths);
+            }
+            return ObjectFilePaths;
+        }
 
-                string CompilerPath = GetClangExecutableCommand(bIsCFile);
-                BasaltLogger.WriteLine($"%m{SourceFile}%c >>> %m{SourceNameWithObject}%c");
-                BasicCompilerBackend.ExecuteTool(CompilerPath, Args);
+        private void CompileSource(string SourceFile, List<string> Flags, string Output, List<string> OBJArray)
+        {
+            string SourceNameWithObject = Path.Combine(
+                Output,
+                $"{Path.GetFileNameWithoutExtension(SourceFile)}.{(OperatingSystem.IsWindows() ? "obj" : "o")}")
+                .Replace("\\", "/");
 
-                BasaltCompilationDatabase.PushEntry(
-                    Directory.GetCurrentDirectory(), [CompilerPath, .. Args], SourceFile);
+            List<string> Includes = GetIncludes();
 
-                ObjectFilePaths.Add(SourceNameWithObject);
+            List<string> Args = [
+                "-c", 
+                SourceFile,
+                $"-o {SourceNameWithObject}",
+                ..Flags,
+                ..Includes,
+                ..ThirdPartyLibraries.Headers,
+                ..RequiredLibraryIncludes, ..GetOSFlags(Project, "CompileFlags")];
+
+            bool bIsCFile = SourceFile.EndsWith(".c");
+            if (!bIsCFile)
+            {
+                BasaltDefaults.CPPVersions.TryGetValue(CompilerMetadata.LanguageVersion, out string? Version);
+                // If the version doesnt exist default to the build tools default 
+                Version ??= $"c++{BasaltDefaults.CPP}";
+                Args.Add($"-std={Version}");
+            }
+            else
+            {
+                LavaFunctionNode? LanguageUseC = (LavaFunctionNode?)Project.GetNode("CLangVersion");
+
+                int LangVersion = BasaltDefaults.C;
+                if (LanguageUseC != null)
+                {
+                    LangVersion = LanguageUseC.Invoke<int>();
+                }
+                BasaltDefaults.CVersions.TryGetValue(LangVersion, out string? Version);
+                Args.Add($"-std={Version}");
             }
 
-            return ObjectFilePaths;
+            string CompilerPath = GetClangExecutableCommand(bIsCFile);
+            BasaltLogger.WriteLine($"%m{SourceFile}%c >>> %m{SourceNameWithObject}%c");
+            BasicCompilerBackend.ExecuteTool(CompilerPath, Args);
+
+            BasaltCompilationDatabase.PushEntry(
+                Directory.GetCurrentDirectory(), [CompilerPath, .. Args], SourceFile);
+
+            OBJArray.Add(SourceNameWithObject);
         }
     }
 }
