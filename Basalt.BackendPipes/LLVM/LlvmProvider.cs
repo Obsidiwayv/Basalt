@@ -49,21 +49,26 @@ namespace Basalt.BackendPipes.LLVM
         public void BuildExecutableTask()
         {
             SharedInstance.SetCompilerMode(EBinaryType.Executable, null);
-            Instance.RunExecutableTask();
+            if (!SharedInstance.SkipBuild)
+            {
+                Instance.RunExecutableTask();
+            }
         }
 
         public void BuildLibraryTask(ELibraryType LibraryType)
         {
             SharedInstance.SetCompilerMode(EBinaryType.Library, LibraryType);
-
-            switch (LibraryType)
+            if (!SharedInstance.SkipBuild)
             {
-                case ELibraryType.Static:
-                    Instance.RunStaticLibraryTask();
-                    break;
-                case ELibraryType.Dynamic:
-                    Instance.RunDynamicLibraryTask();
-                    break;
+                switch (LibraryType)
+                {
+                    case ELibraryType.Static:
+                        Instance.RunStaticLibraryTask();
+                        break;
+                    case ELibraryType.Dynamic:
+                        Instance.RunDynamicLibraryTask();
+                        break;
+                }
             }
         }
 
@@ -71,23 +76,31 @@ namespace Basalt.BackendPipes.LLVM
         {
             FinishAssets();
             Instance.HandleFinish();
+            if (!SharedInstance.SkipBuild)
+            {
+                // Finish off the build by writing a metadata file into the depot dir
+                SharedInstance.Depot.WriteMetadata();
+            }
+
             if (SharedInstance.CompilerMode != EBinaryType.Executable) return;
 
-            string AppFolderName = BasaltMacAppPackage.GetAppFolderFromName(
-                SharedInstance, ProjectName);
-
-            if (OperatingSystem.IsMacOS()
-                && Directory.Exists(AppFolderName))
+            if (OperatingSystem.IsMacOS())
             {
-                foreach (string DylibFile in Directory.EnumerateFiles(
-                    BasicProvider.GetDebugOrReleaseDir(), "*.dylib", SearchOption.TopDirectoryOnly))
+                string AppFolderName = BasaltMacAppPackage.GetAppFolderFromName(
+                    SharedInstance, ProjectName);
+
+                if (Directory.Exists(AppFolderName))
                 {
-                    File.Move(
-                        DylibFile,
-                        Path.Join(
-                            BasaltMacAppPackage
-                                .GetOrCreateNamedPackageFolder(SharedInstance, $"{ProjectName}.app", "Frameworks"),
-                            Path.GetFileName(DylibFile)), true);
+                    foreach (string DylibFile in Directory.EnumerateFiles(
+                        BasicProvider.GetDebugOrReleaseDir(), "*.dylib", SearchOption.TopDirectoryOnly))
+                    {
+                        File.Move(
+                            DylibFile,
+                            Path.Join(
+                                BasaltMacAppPackage
+                                    .GetOrCreateNamedPackageFolder(SharedInstance, $"{ProjectName}.app", "Frameworks"),
+                                Path.GetFileName(DylibFile)), true);
+                    }
                 }
             }
 
@@ -104,6 +117,7 @@ namespace Basalt.BackendPipes.LLVM
                     CompressionLevel.Optimal, false
                 );
             }
+
         }
 
         private void FinishAssets()

@@ -1,0 +1,16 @@
+{
+  "identifier": "01a0645e-72b1-7b20-bedd-61ff6db5f708",
+  "project_file": "TestLib/Build.lava",
+  "depot": "TestLibA",
+  "binary_type": 2,
+  "runtime_file": null,
+  "link_file": null,
+  "modules": [
+    {
+      "identifier": "01a0645e-6754-7cd6-8c88-503c60c7eb40",
+      "depot": "TestLibB",
+      "runtime_file": null,
+      "link_file": null
+    }
+  ]
+}

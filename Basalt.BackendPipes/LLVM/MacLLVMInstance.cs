@@ -12,9 +12,6 @@ namespace Basalt.BackendPipes.LLVM
     public class MacLLVMInstance(
         SharedLLVMInstance Shared) : ILLVMInstance
     {
-        private static string LibraryFile(string Name) =>
-            $"lib{Name}-x{BasicProvider.GetOSArch()}.dylib";
-
         public void RunExecutableTask()
         {
             List<string> DebugFlags = Shared.GetCompilerDebugFlags();
@@ -26,11 +23,11 @@ namespace Basalt.BackendPipes.LLVM
                 .. BasaltGlobalFileCache.LibraryCache.Where(L => L.LibType == ELibraryType.Dynamic)];
 
             string ExecutableName = Path.Join(
-                MacPackageOutput,
+                Shared.DepotOutDirectory,
                 Shared.GetExecutableName());
 
             List<string> PackagingFlags = [];
-            if (SharedLLVMInstance.ReleaseMode)
+            if (BasicProvider.ReleaseMode)
             {
                 PackagingFlags.Add("-g");
             }
@@ -49,7 +46,7 @@ namespace Basalt.BackendPipes.LLVM
                 ..Shared.ThirdPartyLibraries.LinkFiles,
                 string.Join(" ", Objects)]);
 
-            if (SharedLLVMInstance.ReleaseMode && !Shared.Project.MacroIsPresent("DisableDSYM"))
+            if (BasicProvider.ReleaseMode && !Shared.Project.MacroIsPresent("DisableDSYM"))
             {
                 if (Shared.VersionNumber == null)
                     throw new BasaltException("@AppVersion is null");
@@ -113,11 +110,11 @@ namespace Basalt.BackendPipes.LLVM
             List<string> Includes = Shared.GetIncludes();
             List<string> ExtraFlags = [];
 
-            string DylibName = LibraryFile(Shared.ProjectName.Value);
+            string DylibName = BasicCompilerBackend.GetLibraryFile(Shared.ProjectName.Value);
 
             string BinaryName = Path.Join(
-                BasicProvider.GetDebugOrReleaseDir(),
-                LibraryFile(Shared.ProjectName.Value));
+                Shared.DepotOutDirectory,
+                DylibName);
 
             BasaltGlobalFileCache.LibraryCache.Add(
                new(

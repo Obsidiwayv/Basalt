@@ -1,0 +1,9 @@
+{
+  "identifier": "01a0645e-6754-7cd6-8c88-503c60c7eb40",
+  "project_file": "TestLibB/Build.lava",
+  "depot": "TestLibB",
+  "binary_type": 2,
+  "runtime_file": null,
+  "link_file": null,
+  "modules": []
+}

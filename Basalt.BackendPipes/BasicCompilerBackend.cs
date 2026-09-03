@@ -1,4 +1,4 @@
-using Basalt.LavaLang;
+﻿using Basalt.LavaLang;
 using Basalt.LavaLang.Entities;
 using Basalt.LavaLang.Functions;
 using Basalt.LavaLang.Impl;
@@ -18,7 +18,8 @@ namespace Basalt.BackendPipes
     public enum ECompiler
     {
         MicrosoftVisualStudioCompiler,
-        LLVM
+        LLVM,
+        XCode
     }
 
     public enum EReleaseMode
@@ -41,6 +42,8 @@ namespace Basalt.BackendPipes
         // If the Compiler mode is null, its not set yet
         public EBinaryType? CompilerMode { get; set; }
 
+        public ELibraryType? LibraryType { get; set; }
+
         // FLAGS
         public static bool DebugMode { get; set; } = false;
 
@@ -53,6 +56,8 @@ namespace Basalt.BackendPipes
         public static bool ReleaseMode { get; set; } = true;
 
         public static bool VerboseMode { get; set; } = false;
+
+        public bool SkipBuild { get; } = false;
 
         public EReleaseMode ReleaseType { get; } = EReleaseMode.Shipping;
 
@@ -69,7 +74,13 @@ namespace Basalt.BackendPipes
 
         public string OutputDirectory { get; set; }
 
-        public Guid BuildId = Guid.CreateVersion7();
+        public string DepotOutDirectory { get; set; }
+
+        public Guid BuildId { get; }
+
+        public BasaltProjectDepot Depot { get; }
+
+        public Dictionary<string, string> SourceHashes { get; set; } = [];
 
         public BasicProvider(
             BasaltProject Project,
@@ -132,6 +143,17 @@ namespace Basalt.BackendPipes
 
             OutputDirectory = UpdateOutputDirectory();
             BasaltGlobalFileCache.LoadIntoCache();
+
+            bool bHasChanges = VerifyHashes();
+            if (!bHasChanges)
+            {
+                SkipBuild = true;
+            } else
+            {
+                BuildId = Guid.CreateVersion7();
+            }
+
+            Depot = new(this);
         }
 
         public static string GetOSArch() => RuntimeInformation.OSArchitecture switch
@@ -165,9 +187,50 @@ namespace Basalt.BackendPipes
             return $"{ProjectName.Value}-{ReleaseModel}-{OSName}{ArchName}{Ext}";
         }
 
+        public string GetSourceHashFile()
+        {
+            string HashFileName = Path.Join("Bin", ".source_hashes");
+            if (DebugMode)
+            {
+                HashFileName = Path.Join("Bin", ".d_source_hashes");
+            }
+            if (PreviewMode)
+            {
+                HashFileName = Path.Join("Bin", ".p_source_hashes");
+            }
+
+            return HashFileName;
+        }
+
+        private bool VerifyHashes()
+        {
+            string HashFileName = GetSourceHashFile();
+            string HashFileContent = File.ReadAllText(HashFileName);
+            if (HashFileContent == null) 
+                return true;
+
+            int Changes = 1;
+
+            return Changes == 0;
+        }
+
         private string UpdateOutputDirectory()
         {
             LavaStringNode? UserOutputDir = (LavaStringNode?)Project.GetNode("Output");
+            if (DebugMode)
+            {
+                DepotOutDirectory = Path.Join(GetProjectDepotDir(), "Debug");
+            }
+            if (ReleaseMode)
+            {
+                DepotOutDirectory = Path.Join(GetProjectDepotDir(), "Release");
+            }
+            if (PreviewMode)
+            {
+                DepotOutDirectory = Path.Join(GetProjectDepotDir(), "Preview");
+            }
+            Directory.CreateDirectory(DepotOutDirectory);
+
             if (UserOutputDir != null)
             {
                 if (OperatingSystem.IsMacOS())
@@ -189,7 +252,7 @@ namespace Basalt.BackendPipes
             return Depot;
         }
 
-        public string GetDebugOrReleaseDir()
+        public static string GetDebugOrReleaseDir()
         {
             string DebugDir = BasaltDirectoryTiles.Debug.Value;
             string ReleaseDir = BasaltDirectoryTiles.Release.Value;
@@ -218,6 +281,7 @@ namespace Basalt.BackendPipes
         public void SetCompilerMode(EBinaryType BinaryType, ELibraryType? LibraryType)
         {
             CompilerMode = BinaryType;
+            this.LibraryType = LibraryType;
             string BinaryMessage = BinaryType == EBinaryType.Executable
                 ? "Executable" : $"{LibraryType} Library";
             BasaltLogger.WriteLine(
@@ -231,7 +295,7 @@ namespace Basalt.BackendPipes
 
             if (AssetArrayNode != null)
             {
-                BasaltAssetsPipeline Pipeline = new(true);
+                BasaltAssetsPipeline Pipeline = new();
                 foreach (string Path in AssetArrayNode.Value)
                 {
                     if (File.Exists(Path))
@@ -329,6 +393,9 @@ namespace Basalt.BackendPipes
         { 
             WriteIndented = true
         };
+
+        public static string GetLibraryFile(string Name) =>
+            $"lib{Name}-x{BasicProvider.GetOSArch()}.dylib";
 
         public static void ExecuteTool(string ToolUrl, List<string> Flags)
         {

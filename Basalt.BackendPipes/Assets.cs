@@ -1,7 +1,8 @@
-﻿namespace Basalt.BackendPipes
+﻿using Basalt.Tile;
+
+namespace Basalt.BackendPipes
 {
-    public class BasaltAssetsPipeline(
-        bool TrackFiles = false)
+    public class BasaltAssetsPipeline()
     {
         public List<string> CopiedFiles = [];
 

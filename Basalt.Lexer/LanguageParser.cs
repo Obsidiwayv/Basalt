@@ -4,6 +4,7 @@ using Basalt.Tile;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Basalt.LavaLang
@@ -69,20 +70,62 @@ namespace Basalt.LavaLang
                     Index++;
                     Index++;
                     List<string> Strings = [];
-                    for (int SubIndex = 0 + Index; SubIndex < SyntaxMap.Count; SubIndex++)
+                    LavaBlockNode<LavaConfigurationNode> ConfigNodes = new(Word);
+
+                    int SubIndex = Index;
+                    for (; SubIndex < SyntaxMap.Count; SubIndex++)
                     {
                         string SubWord = SyntaxMap[SubIndex];
+                        if (SubWord.Contains("rules")) // its a rule configuration
+                        {
+                            LavaConfigurationNode Config = new(SubWord);
+                            SubIndex++;
+                            HandleOSConfigRules(SyntaxMap[SubIndex], (OS) =>
+                            {
+                                Config.Platform = OS;                     
+                                SubIndex++;
+                                SubIndex++;
+                                
+                                int RuleIndex = SubIndex;
+                                for (; RuleIndex < SyntaxMap.Count; RuleIndex++)
+                                {
+                                    string FlagRule = SyntaxMap[RuleIndex];
+                                    if (FlagRule == "}")
+                                    {
+                                        break;
+                                    }
+                                    Config.Value.Add(FlagRule);
+                                }
+                                SubIndex = RuleIndex ;
+                            });
+                            ConfigNodes.Value.Add(Config);
+                            continue;
+                        }
                         if (SubWord == "}")
                         {
-                            Nodes.Add(new LavaArrayNode(Word, Strings, ENodeEntityType.Array));
+                            if (Strings.Count != 0)
+                            {
+                                Nodes.Add(new LavaArrayNode(Word, Strings, ENodeEntityType.Array));
+                            }
                             break;
                         }
                         Strings.Add(SubWord);
                         Index++;
                     }
+                    if (ConfigNodes.Value.Count != 0)
+                    {
+                        Nodes.Add(ConfigNodes);
+                    }
+                    Index = SubIndex;
                 }
             }
             return this;
         }
+        private static void HandleOSConfigRules(string OSName, Action<OSPlatform> FN)
+        {
+            if (OSName == "macOS" && OperatingSystem.IsMacOS()) 
+                FN.Invoke(OSPlatform.OSX);
+        }
     }
+
 }

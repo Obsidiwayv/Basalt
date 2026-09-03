@@ -11,6 +11,12 @@ namespace Basalt.LavaLang
     {
         public List<string> SyntaxMap { get; } = [];
 
+        private readonly List<char> SyntaxDelimiters = [
+            '{', '}', '@'
+        ];
+
+        private readonly List<char> SyntaxEndDelimiters = ['[', ']'];
+
         public BasaltLanguageLexer Run()
         {
             char[] FileContent = File.Fetch().ToCharArray();
@@ -96,14 +102,16 @@ namespace Basalt.LavaLang
                 }
 
                 // Make sure that all symbols are included
-                if (C != '_' && char.IsPunctuation(C))
+                if (C != '_' && SyntaxDelimiters.Contains(C))
                 {
                     // let this specific character get appended into the stringbuilder
                     SyntaxMap.Add(C.ToString());
                     continue;
                 }
 
-                if (C == ' ' || C == '\n')
+                if (C == ' ' || C == '\n' 
+                    || (Word.Length != 0 && SyntaxEndDelimiters.Contains(C))
+                    || Word.ToString() == "::")//to make sure rule configurations actually WORK
                 {
                     if (!string.IsNullOrWhiteSpace(Word.ToString()))
                     {
