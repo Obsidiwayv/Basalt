@@ -1,0 +1,6 @@
+[workspace]
+resolver = "3"
+members = ["basalt-build", "basalt-common", "basalt-dsl"]
+
+[workspace.dependencies]
+clap = { version = "4.6.6", features = ["derive"] }

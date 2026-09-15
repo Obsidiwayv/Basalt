@@ -1,0 +1,7 @@
+[package]
+name = "basalt-dsl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+basalt-common = { path = "../basalt-common" }

@@ -1,0 +1,34 @@
+@Name "Testing"
+@ThirdParty "Libs"
+@RCFile "test-resource.rc"
+@AppVersion "1.0"
+
+@BundleId "space.wayvlyte.testing"
+@Icon "ico/tl.icns"
+@MinimumMacOSVersion "13.0"
+
+UseClang()
+CreateBinary(executable)
+
+Sources {
+  "Source"
+}
+
+Includes {
+  "Headers"
+}
+
+Assets {
+  "TestAssets"
+  "TestAssets2,*.txt"
+}
+
+CompileFlags {
+  "@windows://debug://-DDEBUG=ENABLE"
+  "@windows://-DDEBUG=DISABLE"
+}
+
+Using {
+  "TestLib/Build.lava"
+  "TestLibC/Build.lava"
+}
