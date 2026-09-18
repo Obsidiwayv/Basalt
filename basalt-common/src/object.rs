@@ -1,7 +1,7 @@
 /**
  * A struct that holds a string for a the span of the program
  */
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StringCache {
     entity: Vec<String>,
 }
@@ -25,5 +25,9 @@ impl StringCache {
 
     pub fn is_empty(&self) -> bool {
         self.entity.is_empty()
+    }
+
+    pub fn equals_string(&self, text: &'static str) -> bool {
+        self.to_string() == text.to_string()
     }
 }
