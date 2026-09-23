@@ -25,6 +25,8 @@ impl LavaParser {
     }
 
     fn parse_token(&self, token: &LavaNode, it: &mut Peekable<std::slice::Iter<LavaNode>>) {
-        if token.node_type == LavaNodeType::FunctionHandle {}
+        if token.node_type == LavaNodeType::FunctionHandle {
+            if it.peek() != "(" {}
+        }
     }
 }
